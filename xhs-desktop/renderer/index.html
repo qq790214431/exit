@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>小红书主页链接采集工具</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+  <div class="title">小红书主页链接采集工具</div>
+  <div class="status" id="status">未开始</div>
+</header>
+
+<section class="data-dir">
+  <span class="label">数据目录</span>
+  <span class="path" id="dataDir">-</span>
+  <button id="pickDirBtn">选择目录…</button>
+  <button id="openDirBtn">打开目录</button>
+</section>
+
+<section class="settings">
+  <label>并发 <input id="concurrency" type="number" min="1" max="8" value="3" /></label>
+  <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
+  <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
+  <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
+  <button id="startBtn" class="primary">▶ 开始采集</button>
+  <button id="stopBtn" class="danger">■ 停止</button>
+  <button id="exportBtn">导出 CSV</button>
+</section>
+
+<section class="progress-area">
+  <div class="bar-label">
+    <span id="overallText">0 / 0</span>
+    <span id="roundText"></span>
+    <span id="percent">0%</span>
+  </div>
+  <div class="bar"><div class="fill" id="overallBar"></div></div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<main>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>昵称</th><th>小红书号</th><th>地区属地</th><th>粉丝数</th><th>粉丝数(数值)</th><th>标签</th><th>状态</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="log-wrap">
+    <div class="log-title">运行日志</div>
+    <pre id="log"></pre>
+  </div>
+</main>
+
+<script src="renderer.js"></script>
+</body>
+</html>
