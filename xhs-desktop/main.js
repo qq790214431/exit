@@ -676,17 +676,29 @@ function createWindow() {
             console.log("screenshot saved");
           }
           if (dumpArg) {
-            const info = await win.webContents.executeJavaScript(`(() => {
+            const info = await win.webContents.executeJavaScript(`(async () => {
   const t = (id) => { const el = document.getElementById(id); return el ? el.textContent : ""; };
+  const M = window.MKT;
+  let mktFunc = "n/a";
+  try {
+    const g = M && M.gate;
+    mktFunc = JSON.stringify({
+      s1_ok: g ? g({ key: "deconstruct", title: "S1" }, { brand: "测试品牌" }).ok : null,
+      s2_empty: g ? g({ key: "research", title: "S2" }, {}).ok : null,
+      buttons: M ? Object.keys(M.stageButtons || {}).map(k => k + ":" + (M.stageButtons[k] || []).length) : []
+    });
+  } catch (e) { mktFunc = "ERR:" + e.message; }
   return JSON.stringify({
     title: document.title,
     dataDir: t("dataDir"),
-    status: t("status"),
     overall: t("overallText"),
     tableRows: document.querySelectorAll("#tbody tr").length,
-    filterCount: t("filterCount"),
     views: ${JSON.stringify(["pipeline","list","rank","dash","marketing","import","tools","export"])}.filter(v => !!document.getElementById("view" + v[0].toUpperCase() + v.slice(1))),
-    sidebarNav: document.querySelectorAll(".nav").length
+    sidebarNav: document.querySelectorAll(".nav").length,
+    mktButtons: (M && Object.keys(M.stageButtons || {}).map(k => k + ":" + (M.stageButtons[k] || []).length)) || [],
+    mktGate: !!(M && M.gate),
+    mktActions: (M && Object.keys(M.listActions || {})) || [],
+    mktFunc
   });
 })()`);
 fs.writeFileSync(dumpArg.split("=")[1], info);
