@@ -4,8 +4,19 @@ const path = require("path");
 const fs = require("fs");
 const XLSX = require("xlsx");
 const { autoUpdater } = require("electron-updater");
-let lib;
-try { lib = require("./lib.js"); } catch (e) { lib = require(path.join(__dirname, "..", "xhs采集", "lib.js")); }
+// lib.js 加载：打包版在 resources/runtime/scripts（extraResources），开发版回退仓库
+function loadLib() {
+  const candidates = [
+    path.join(__dirname, "lib.js"),
+    path.join(process.resourcesPath || __dirname, "runtime", "scripts", "lib.js"),
+    path.join(__dirname, "..", "xhs采集", "lib.js")
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return require(c); } catch (e) {}
+  }
+  return {};
+}
+const lib = loadLib();
 const { parseTags, computeTier, interactionRatio, csvEscape } = lib;
 
 // 打包后应用位于 .app 内部，默认数据目录改为探测常见位置
