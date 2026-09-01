@@ -1,6 +1,6 @@
 {
   "name": "xhs-desktop",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "description": "小红书主页链接采集工具（桌面版）",
   "main": "main.js",
   "author": "xhs-desktop",

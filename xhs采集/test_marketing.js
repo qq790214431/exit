@@ -24,7 +24,7 @@ global.esc = (v) => String(v ?? "");
 global.fmt = (n) => String(n);
 
 const DIR = path.join(__dirname, "..", "xhs-desktop", "renderer");
-const mods = ["mkt-exec.js", "mkt-plan.js", "mkt-ux.js", "mkt-auto.js", "mkt-dash.js", "mkt-pdf.js"];
+const mods = ["mkt-exec.js", "mkt-plan.js", "mkt-ux.js", "mkt-auto.js", "mkt-dash.js", "mkt-pdf.js", "mkt-kanban.js", "mkt-kpi.js", "mkt-template.js"];
 let pass = 0, fail = 0;
 function check(name, cond) { if (cond) pass++; else { fail++; console.log("FAIL:", name); } }
 
@@ -43,6 +43,7 @@ check("S5 执行回填按钮", (M.stageButtons.execution || []).length >= 1);
 check("S4 计划按钮>=2", (M.stageButtons.plan || []).length >= 2);
 check("阶段门禁已注册", typeof M.gate === "function");
 check("列表操作>=2（复制/归档）", Object.keys(M.listActions).length >= 2);
-check("工具栏按钮>=1", M.toolbarButtons.length >= 1);
+check("工具栏按钮>=2（看板/PDF/模板库等）", M.toolbarButtons.length >= 2);
+check("S5 执行按钮>=3（回填/看板/KPI）", (M.stageButtons.execution || []).length >= 3);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -207,7 +207,7 @@ window.MKT = window.MKT || {};
           <div class="dash-sec-title">阶段进度 <small>按各阶段字段填满度统计</small></div>
           <div class="dash-stages">
             ${stageStats.map((s) => `
-              <div class="dash-stage">
+              <div class="dash-stage" data-stage="${esc(s.key || "")}" title="点击进入该阶段编辑">
                 <div class="dash-stage-name">${s.title} ${s.filledN}/${s.total}</div>
                 <div class="dash-chips">${s.chips}</div>
                 <div class="dash-stage-bar">
@@ -234,6 +234,13 @@ window.MKT = window.MKT || {};
 
     document.getElementById("mktDashClose").onclick = closeDash;
     mask.addEventListener("click", (e) => { if (e.target === mask) closeDash(); });
+    mask.querySelectorAll(".dash-stage[data-stage]").forEach(card => {
+      card.addEventListener("click", () => {
+        const key = card.dataset.stage;
+        closeDash();
+        if (key) { window.MKT.stage = key; if (typeof window.renderMktWorkspace === "function") window.renderMktWorkspace(); }
+      });
+    });
   }
 
   function closeDash() {
