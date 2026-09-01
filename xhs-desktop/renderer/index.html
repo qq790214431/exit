@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
 <title>小红书主页链接采集系统</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -37,6 +37,9 @@
   <label>互动权重 <input id="interactWeight" type="number" min="0" max="30" value="20" title="互动表现加分上限" /></label>
   <label>涨粉权重 <input id="growthWeight" type="number" min="0" max="20" value="12" title="涨粉速度加分上限" /></label>
   <label class="chk"><input type="checkbox" id="scheduleEnabled" /> 定时刷新</label>
+  <label class="chk"><input type="checkbox" id="reportEnabled" /> 周报定时</label>
+  <select id="reportDay"><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="0">周日</option></select>
+  <input type="time" id="reportTime" value="09:00" title="每周此时自动生成周报" />
   <input type="time" id="scheduleTime" value="03:00" title="每天此时自动刷新粉丝数" />
   <span class="sep"></span>
   <button id="startBtn" class="primary glow">▶ 开始采集</button>
@@ -58,6 +61,7 @@
   <button id="backupBtn" title="打包备份全部数据">备份</button>
   <button id="captchaBtn" title="打开验证码截图目录">验证码截图</button>
   <button id="reportBtn" title="生成并打开达人库周报">周报</button>
+  <button id="captchaListBtn" title="查看验证码记录与截图">验证码记录</button>
 </section>
 
 <section class="panel progress-area">
@@ -152,6 +156,15 @@
     <pre id="log"></pre>
   </div>
 </main>
+
+<div id="captchaMask" class="modal-mask hidden">
+  <div class="modal modal-wide">
+    <div class="modal-title">◇ 验证码记录</div>
+    <div id="captchaList" class="captcha-list"></div>
+    <div class="captcha-preview"><img id="captchaImg" alt="" /></div>
+    <div class="modal-actions"><button id="captchaClose">关闭</button></div>
+  </div>
+</div>
 
 <div id="trendMask" class="modal-mask hidden">
   <div class="modal">

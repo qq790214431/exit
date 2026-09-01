@@ -306,15 +306,41 @@ ipcMain.handle("backup", () => {
     });
   });
 });
-ipcMain.handle("run-report", async () => {
+async function runReport() {
   const script = fs.existsSync(path.join(__dirname, "report.js")) ? path.join(__dirname, "report.js") : path.join(__dirname, "..", "xhs采集", "report.js");
   win.webContents.send("log", "\n[周报] 生成中...\n");
   const c = spawn("node", [script], { env: { ...process.env, DATA_DIR: dataDir } });
   c.stdout.on("data", d => win.webContents.send("log", d.toString()));
   c.stderr.on("data", d => win.webContents.send("log", d.toString()));
   await new Promise(res => c.on("exit", res));
-  shell.openPath(path.join(dataDir, "xhs_weekly_report.md"));
+  return path.join(dataDir, "xhs_weekly_report.md");
+}
+ipcMain.handle("run-report", async () => {
+  const p = await runReport();
+  shell.openPath(p);
   return readState(dataDir);
+});
+ipcMain.handle("get-captcha-events", () => {
+  const progressFile = path.join(dataDir, "progress.jsonl");
+  const events = [];
+  if (fs.existsSync(progressFile)) {
+    for (const line of fs.readFileSync(progressFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.status === "captcha") events.push({ user_id: j.user_id, ts: j.ts || "", shot: j.shot || "" });
+      } catch (err) {}
+    }
+  }
+  const shotDir = path.join(dataDir, "screenshots");
+  let screenshots = [];
+  if (fs.existsSync(shotDir)) screenshots = fs.readdirSync(shotDir).filter(f => f.endsWith(".png"));
+  return { events: events.slice(-50), screenshots };
+});
+ipcMain.handle("read-image", (e, file) => {
+  const p = path.join(dataDir, "screenshots", path.basename(file));
+  if (!fs.existsSync(p)) return null;
+  return "data:image/png;base64," + fs.readFileSync(p).toString("base64");
 });
 ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
@@ -435,7 +461,9 @@ function createWindow() {
               backupBtn: !!document.getElementById("backupBtn"),
               blacklistFilter: !!document.getElementById("blacklistFilter"),
               noteSave: !!document.getElementById("noteSave"),
-              scoreHeader: document.querySelectorAll("#viewList thead th").length
+              scoreHeader: document.querySelectorAll("#viewList thead th").length,
+              reportScheduleUI: !!document.getElementById("reportDay"),
+              captchaModal: !!document.getElementById("captchaMask")
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
@@ -448,6 +476,23 @@ function createWindow() {
 }
 
 let scheduleLastDate = "";
+let reportLastWeek = "";
+function checkReportSchedule() {
+  if (!config.reportEnabled || !win || win.isDestroyed()) return;
+  const now = new Date();
+  const weekKey = now.getFullYear() + "-W" + Math.floor(now.getTime() / 604800000);
+  const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  if (now.getDay() !== Number(config.reportDay)) return;
+  if (config.reportTime !== hhmm) return;
+  if (reportLastWeek === weekKey) return;
+  reportLastWeek = weekKey;
+  win.webContents.send("log", `\n[定时周报] ${weekKey} 开始生成周报...\n`);
+  runReport().then(() => {
+    if (Notification.isSupported()) {
+      new Notification({ title: "小红书采集", body: "达人周报已生成，已打开" }).show();
+    }
+  });
+}
 function checkSchedule() {
   if (!config.scheduleEnabled || !win || win.isDestroyed()) return;
   const now = new Date();
@@ -469,7 +514,7 @@ function checkSchedule() {
 app.whenReady().then(() => {
   loadConfig();
   createWindow();
-  setInterval(checkSchedule, 30000);
+  setInterval(() => { checkSchedule(); checkReportSchedule(); }, 30000);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

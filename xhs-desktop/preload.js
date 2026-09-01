@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("api", {
   openDir: () => ipcRenderer.invoke("open-dir"),
   openScreenshots: () => ipcRenderer.invoke("open-screenshots"),
   runReport: () => ipcRenderer.invoke("run-report"),
+  getCaptchaEvents: () => ipcRenderer.invoke("get-captcha-events"),
+  readImage: (file) => ipcRenderer.invoke("read-image", file),
   getTrend: (userId) => ipcRenderer.invoke("get-trend", userId),
   getGrowthRanking: () => ipcRenderer.invoke("get-growth-ranking"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),
