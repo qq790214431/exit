@@ -4,7 +4,7 @@ const state = {
   running: false,
   logBuf: "",
   rows: [],
-  filter: { search: "", region: "", fansMin: null, fansMax: null, status: "" },
+  filter: { search: "", region: "", fansMin: null, fansMax: null, status: "", tier: "", industry: "", interact: "" },
   sort: { key: "followers_num", dir: -1 }
 };
 let logMax = 4000;
@@ -58,8 +58,26 @@ function initRegionSelect(rows) {
   }
 }
 
+function tierMedians() {
+  const byTier = {};
+  for (const r of state.rows) {
+    if (r.status !== "ok" || !r.tier) continue;
+    const v = parseFloat(r.interaction_ratio);
+    if (isNaN(v)) continue;
+    (byTier[r.tier] = byTier[r.tier] || []).push(v);
+  }
+  const med = {};
+  for (const t of Object.keys(byTier)) {
+    const a = byTier[t].sort((x, y) => x - y);
+    const mid = Math.floor(a.length / 2);
+    med[t] = a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  }
+  return med;
+}
+
 function currentRows() {
   const f = state.filter;
+  const med = tierMedians();
   let rows = state.rows;
   if (f.search) {
     const q = f.search.toLowerCase();
@@ -69,12 +87,30 @@ function currentRows() {
   if (f.status) rows = rows.filter(r => r.status === f.status);
   if (f.fansMin != null && f.fansMin !== "") rows = rows.filter(r => (r.followers_num ?? -1) >= f.fansMin);
   if (f.fansMax != null && f.fansMax !== "") rows = rows.filter(r => (r.followers_num ?? -1) <= f.fansMax);
+  if (f.tier) rows = rows.filter(r => r.tier === f.tier);
+  if (f.industry) rows = rows.filter(r => (r.industry || "").includes(f.industry));
+  if (f.interact) {
+    rows = rows.filter(r => {
+      const v = parseFloat(r.interaction_ratio);
+      if (isNaN(v) || !r.tier || med[r.tier] == null) return false;
+      return f.interact === "high" ? v >= med[r.tier] : v < med[r.tier];
+    });
+  }
   const { key, dir } = state.sort;
   rows = rows.slice().sort((a, b) => {
     if (key === "followers_num") return ((a[key] ?? -1) - (b[key] ?? -1)) * dir;
     return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "zh") * dir;
   });
   return rows;
+}
+
+function benchMark(r) {
+  if (r.status !== "ok" || !r.tier) return "";
+  const v = parseFloat(r.interaction_ratio);
+  if (isNaN(v)) return "";
+  const med = tierMedians()[r.tier];
+  if (med == null) return "";
+  return v >= med ? '<span class="bench high" title="高于同群基准">▲</span>' : '<span class="bench low" title="低于同群基准">▼</span>';
 }
 
 function applyFilters() {
@@ -89,14 +125,14 @@ function applyFilters() {
       <td>${esc(r.followers)}</td>
       <td>${esc(r.followers_num)}</td>
       <td>${esc(r.likes_collects_num)}</td>
-      <td>${esc(r.interaction_ratio)}</td>
+      <td>${esc(r.interaction_ratio)}${benchMark(r)}</td>
       <td>${esc(r.tier)}</td>
       <td>${esc(r.age)}</td>
       <td>${esc(r.constellation)}</td>
       <td>${esc(r.industry)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="13" style="color:#6b84b0">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="14" style="color:#6b84b0">无匹配数据</td></tr>`;
   document.querySelectorAll("#tbody tr[data-uid]").forEach(tr => {
     tr.onclick = () => showTrend(tr.dataset.uid, tr.children[0].textContent);
   });
@@ -202,6 +238,15 @@ $("exportXlsxBtn").onclick = async () => {
   $("exportXlsxBtn").disabled = false;
 };
 $("growthBtn").onclick = () => window.api.openDir();
+$("exportFilteredBtn").onclick = async () => {
+  const rows = currentRows();
+  if (!rows.length) { appendLog("\n[导出筛选] 当前无匹配行\n"); return; }
+  $("exportFilteredBtn").disabled = true;
+  appendLog(`\n[导出筛选] 导出 ${rows.length} 行...\n`);
+  const r = await window.api.exportRows(rows);
+  appendLog(`已导出: ${r.csv} / ${r.xlsx}\n`);
+  $("exportFilteredBtn").disabled = false;
+};
 $("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) renderState(s); };
 $("openDirBtn").onclick = () => window.api.openDir();
 
@@ -301,13 +346,18 @@ function onFilterChange() {
   state.filter.status = $("statusFilter").value;
   state.filter.fansMin = $("fansMin").value === "" ? null : Number($("fansMin").value);
   state.filter.fansMax = $("fansMax").value === "" ? null : Number($("fansMax").value);
+  state.filter.tier = $("tierFilter").value;
+  state.filter.industry = $("industryFilter").value.trim();
+  state.filter.interact = $("interactFilter").value;
   applyFilters();
 }
-["search", "regionFilter", "statusFilter", "fansMin", "fansMax"].forEach(id => {
-  $(id).addEventListener(id === "search" ? "input" : "change", onFilterChange);
+["search", "regionFilter", "statusFilter", "fansMin", "fansMax", "tierFilter", "interactFilter"].forEach(id => {
+  $(id).addEventListener(id === "search" || id === "industryFilter" ? "input" : "change", onFilterChange);
 });
+$("industryFilter").addEventListener("input", onFilterChange);
 $("clearFilter").onclick = () => {
   $("search").value = ""; $("regionFilter").value = ""; $("statusFilter").value = ""; $("fansMin").value = ""; $("fansMax").value = "";
+  $("tierFilter").value = ""; $("industryFilter").value = ""; $("interactFilter").value = "";
   onFilterChange();
 };
 document.querySelectorAll("th[data-key]").forEach(th => {

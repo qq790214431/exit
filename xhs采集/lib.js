@@ -36,4 +36,11 @@ function interactionRatio(likesNum, followersNum) {
   return "";
 }
 
-module.exports = { parseTags, computeTier, interactionRatio };
+function csvEscape(v) {
+  if (v == null) return "";
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+module.exports = { parseTags, computeTier, interactionRatio, csvEscape };

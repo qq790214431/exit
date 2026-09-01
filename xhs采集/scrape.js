@@ -144,6 +144,7 @@ function exportCsv() {
         const j = JSON.parse(line);
         if (j.status !== "ok") continue;
         const jj = { ...j };
+        if (!jj.red_id && jj.status === "ok") jj.red_id = "未公开";
         jj.interaction_ratio = interactionRatio(jj.likes_collects_num, jj.followers_num);
         const pt = parseTags(jj.tags);
         jj.age = pt.age;

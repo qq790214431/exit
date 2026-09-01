@@ -3,7 +3,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const XLSX = require("xlsx");
-const { parseTags, computeTier, interactionRatio } = require(path.join(__dirname, "..", "xhs采集", "lib.js"));
+const { parseTags, computeTier, interactionRatio, csvEscape } = require(path.join(__dirname, "..", "xhs采集", "lib.js"));
 
 // 打包后应用位于 .app 内部，默认数据目录改为探测常见位置
 function defaultDataDir() {
@@ -74,7 +74,7 @@ function readState(dir) {
     rows.push({
       user_id: id,
       nickname: j.nickname || "",
-      red_id: j.red_id || "",
+      red_id: j.red_id || (j.status === "ok" ? "未公开" : ""),
       region: j.region || "",
       followers: j.followers || "",
       followers_num: j.followers_num ?? "",
@@ -242,6 +242,27 @@ ipcMain.handle("import-links", async (e, text) => {
   await new Promise(resolve => c.on("exit", resolve));
   return { result: out, state: readState(dataDir) };
 });
+ipcMain.handle("export-rows", (e, rows) => {
+  const cols = ["nickname", "red_id", "region", "followers", "followers_num", "likes_collects_num", "interaction_ratio", "tier", "age", "constellation", "industry", "status"];
+  const clean = (rows || []).map(r => {
+    const o = {};
+    for (const c of cols) o[c] = r[c] ?? "";
+    o.user_id = r.user_id || "";
+    o.ts = r.ts || "";
+    return o;
+  });
+  const csvPath = path.join(dataDir, "xhs_profiles_filtered.csv");
+  const csvContent = "\ufeff" + [...cols, "user_id", "ts"].join(",") + "\n" +
+    clean.map(r => [...cols, "user_id", "ts"].map(c => csvEscape(r[c])).join(",")).join("\n") + "\n";
+  fs.writeFileSync(csvPath, csvContent);
+  const xlsxPath = path.join(dataDir, "xhs_profiles_filtered.xlsx");
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(clean.map(r => ({ 昵称: r.nickname, 小红书号: r.red_id, 地区属地: r.region, 粉丝数: r.followers, 粉丝数值: r.followers_num, 获赞收藏: r.likes_collects_num, 互动率: r.interaction_ratio, 分群: r.tier, 年龄: r.age, 星座: r.constellation, 行业: r.industry, 状态: r.status })));
+  XLSX.utils.book_append_sheet(wb, ws, "筛选结果");
+  XLSX.writeFile(wb, xlsxPath);
+  win.webContents.send("log", `已导出筛选结果（${clean.length} 行）: ${csvPath} / ${xlsxPath}\n`);
+  return { csv: csvPath, xlsx: xlsxPath, count: clean.length };
+});
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
 ipcMain.handle("get-growth-ranking", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
@@ -352,7 +373,11 @@ function createWindow() {
               trendModal: !!document.getElementById("trendMask"),
               tableHeaderCols: document.querySelectorAll("#tbody")[0] ? document.querySelectorAll("thead th").length : 0,
               tabs: document.querySelectorAll(".tab").length,
-              rankView: !!document.getElementById("viewRank")
+              rankView: !!document.getElementById("viewRank"),
+              tierFilter: !!document.getElementById("tierFilter"),
+              industryFilter: !!document.getElementById("industryFilter"),
+              interactFilter: !!document.getElementById("interactFilter"),
+              exportFilteredBtn: !!document.getElementById("exportFilteredBtn")
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
