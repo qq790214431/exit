@@ -197,7 +197,11 @@ function createWindow() {
                 status: document.getElementById("status").textContent,
                 overall: document.getElementById("overallText").textContent,
                 tableRows: document.querySelectorAll("#tbody tr").length,
-                logLen: document.getElementById("log").textContent.length
+                logLen: document.getElementById("log").textContent.length,
+                hasSearch: !!document.getElementById("search"),
+                regionOptions: document.getElementById("regionFilter").options.length,
+                chartCanvases: document.querySelectorAll(".chart canvas").length,
+                filterCount: document.getElementById("filterCount").textContent
               });
             })()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
