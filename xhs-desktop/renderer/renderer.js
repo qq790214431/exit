@@ -277,6 +277,26 @@ function mktProgress(p) {
   return total ? Math.round(filled / total * 100) : 0;
 }
 function emptyPhases() { return { deconstruct: {}, research: {}, strategy: {}, plan: {}, execution: {} }; }
+function templatePhases(name) {
+  const base = emptyPhases();
+  if (name === "标准快消") {
+    base.deconstruct = { industry: "快消", platforms: "小红书", goal: "品牌认知 + 产品种草", positioning: "品质生活之选" };
+    base.research = { keywords: "品类词,场景词,功效词", persona: "25-35岁 一二线 女性为主" };
+    base.strategy = { positioning_statement: "为追求品质生活的用户提供高性价比产品" };
+    base.plan = { kpi: "笔记30篇 互动率>3% 涨粉1000+" };
+  } else if (name === "美妆上新") {
+    base.deconstruct = { industry: "美妆", platforms: "小红书", goal: "新品上市声量", positioning: "成分党信赖" };
+    base.research = { keywords: "成分,测评,平价替代", persona: "18-30岁 学生/职场新人" };
+    base.strategy = { positioning_statement: "成分透明、效果可见的平价美妆" };
+    base.plan = { kpi: "上新笔记50篇 曝光50万 互动率>4%" };
+  } else if (name === "本地生活") {
+    base.deconstruct = { industry: "本地生活/餐饮", platforms: "小红书", goal: "到店引流", positioning: "本地人私藏好店" };
+    base.research = { keywords: "探店,必吃榜,周边游", persona: "20-40岁 同城用户" };
+    base.strategy = { positioning_statement: "本地真实口碑好店推荐" };
+    base.plan = { kpi: "探店笔记20篇 收藏>500 到店核销>200" };
+  }
+  return base;
+}
 
 function rowEditorHTML(rk, cols, rows) {
   let html = `<table class="row-editor"><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}<th style="width:36px"></th></tr></thead><tbody>`;
@@ -298,7 +318,8 @@ function renderMarketing() {
   $("mktNew").onclick = async () => {
     const name = prompt("项目名称：");
     if (!name) return;
-    const p = { id: "p" + Date.now(), name, client: "", status: "进行中", created_at: new Date().toISOString(), phases: emptyPhases() };
+    const tpl = prompt("选择模板：空模板 / 标准快消 / 美妆上新 / 本地生活（回车默认空模板）") || "空模板";
+    const p = { id: "p" + Date.now(), name, client: "", status: "进行中", created_at: new Date().toISOString(), phases: templatePhases(tpl) };
     mktProjects = await window.api.saveProject(p);
     mktCurrent = p.id; mktStage = "deconstruct";
     renderMarketing();
@@ -352,7 +373,12 @@ function renderMktWorkspace() {
       <div class="mkt-stages">${stageNav}</div>
     </div>
     <div class="mkt-form">${groups}
-      <div class="mkt-actions2"><button id="mktSave" class="primary">保存阶段</button><span class="filter-count" id="mktSaveTip"></span></div>
+      <div class="mkt-actions2">
+        <button id="mktSave" class="primary">保存阶段</button>
+        ${mktStage === "research" ? '<button id="mktGenCandidates">从达人库生成候选</button>' : ""}
+        ${mktStage === "execution" ? '<button id="mktCompareActual">对比实际数据</button>' : ""}
+        <span class="filter-count" id="mktSaveTip"></span>
+      </div>
     </div>`;
   document.querySelectorAll(".mkt-stage").forEach(b => b.onclick = () => { mktStage = b.dataset.key; renderMktWorkspace(); });
   document.querySelectorAll(".row-add").forEach(btn => btn.onclick = () => {
@@ -365,6 +391,12 @@ function renderMktWorkspace() {
     ph[btn.dataset.key].splice(Number(btn.dataset.i), 1);
     renderMktWorkspace();
   });
+  if (mktStage === "research" && $("mktGenCandidates")) {
+    $("mktGenCandidates").onclick = () => genCandidates(p, ph);
+  }
+  if (mktStage === "execution" && $("mktCompareActual")) {
+    $("mktCompareActual").onclick = () => compareActual(p);
+  }
   $("mktSave").onclick = async () => {
     const out = {};
     document.querySelectorAll(".mkt-form [data-k]").forEach(el => out[el.dataset.k] = el.value);
@@ -387,6 +419,64 @@ function renderMktWorkspace() {
     renderMktList();
   };
 }
+function parsePoolFilters(text) {
+  const parts = (text || "").split(/[,，;；\s]+/).filter(Boolean);
+  const f = { tiers: [], industries: [], regions: [] };
+  for (const p of parts) {
+    if (["素人", "尾部", "腰部", "头部"].includes(p)) f.tiers.push(p);
+    else if (/省|市|区|县/.test(p)) f.regions.push(p);
+    else f.industries.push(p);
+  }
+  return f;
+}
+function findCandidates(filterText) {
+  const f = parsePoolFilters(filterText);
+  let rows = state.rows.filter(r => r.status === "ok");
+  if (f.tiers.length) rows = rows.filter(r => f.tiers.includes(r.tier));
+  if (f.industries.length) rows = rows.filter(r => f.industries.some(i => (r.industry || "").includes(i)));
+  if (f.regions.length) rows = rows.filter(r => f.regions.some(reg => (r.region || "").includes(reg)));
+  const med = tierMedians();
+  return rows.map(r => ({ ...r, _score: computeScore(r, med[r.tier]) })).sort((a, b) => b._score - a._score).slice(0, 40);
+}
+function genCandidates(project, ph) {
+  const filterText = (document.querySelector('[data-k="pool_filters"]') || {}).value || "";
+  const cands = findCandidates(filterText);
+  $("mktModalTitle").textContent = `◇ 达人候选（${cands.length} 个匹配，条件：${filterText || "全部 ok 达人"}）`;
+  $("mktModalBody").innerHTML = cands.map((r, i) => `
+    <label class="cand-row"><input type="checkbox" class="cand-chk" value="${esc(r.user_id)}" />
+      <span>${esc(r.nickname)}</span><span class="dim">${esc(r.tier)} · ${esc(r.region)} · 粉丝${esc(r.followers_num)} · 互动${esc(r.interaction_ratio)} · 评分${r._score}</span>
+    </label>`).join("") || `<div style="color:#6b84b0;padding:12px">无匹配（可在 S2 填写筛选条件，如：腰部,母婴,广东）</div>`;
+  $("mktModalActions").innerHTML = `<button id="mktCandPick">加入 S4 达人矩阵</button><button id="mktCandClose">关闭</button>`;
+  $("mktMask").classList.remove("hidden");
+  $("mktCandClose").onclick = () => $("mktMask").classList.add("hidden");
+  $("mktCandPick").onclick = async () => {
+    const picked = [...document.querySelectorAll(".cand-chk:checked")].map(c => state.rows.find(r => r.user_id === c.value)).filter(Boolean);
+    if (!picked.length) { alert("请勾选至少一个"); return; }
+    project.phases = project.phases || emptyPhases();
+    project.phases.plan = project.phases.plan || {};
+    project.phases.plan.influencer_matrix = project.phases.plan.influencer_matrix || [];
+    for (const r of picked) project.phases.plan.influencer_matrix.push([r.nickname, r.tier || "", r.followers_num ?? "", "", "", "待定"]);
+    mktProjects = await window.api.saveProject(project);
+    $("mktMask").classList.add("hidden");
+    appendLog(`\n[全案营销] 已加入 ${picked.length} 个达人到 S4 达人矩阵（保存后可见）\n`);
+  };
+}
+function compareActual(project) {
+  const matrix = (project.phases && project.phases.plan && project.phases.plan.influencer_matrix) || [];
+  const kpi = (project.phases && project.phases.plan && project.phases.plan.kpi) || "";
+  const rows = matrix.map(row => {
+    const name = row[0] || "";
+    const found = state.rows.find(r => r.nickname === name && r.status === "ok");
+    return `<tr><td>${esc(name)}</td><td>${esc(row[1] || "")}</td><td>${esc(row[3] || "")}</td><td>${found ? esc(found.followers_num) : "-"}</td><td>${found ? esc(found.avg_likes) : "-"}</td><td>${found ? esc(found.interaction_ratio) : "-"}</td></tr>`;
+  }).join("");
+  $("mktModalTitle").textContent = "◇ 执行数据对比（计划 vs 实际）";
+  $("mktModalBody").innerHTML = `<div class="compare-wrap"><table><thead><tr><th>达人</th><th>分群</th><th>计划预算</th><th>实际粉丝</th><th>实际均赞/篇</th><th>实际互动率</th></tr></thead><tbody>${rows || '<tr><td colspan="6" style="color:#6b84b0">S4 达人矩阵为空</td></tr>'}</tbody></table></div>
+    <div class="dim" style="margin-top:8px;font-size:12px">计划 KPI：${esc(kpi || "-")}</div>`;
+  $("mktModalActions").innerHTML = `<button id="mktCandClose">关闭</button>`;
+  $("mktMask").classList.remove("hidden");
+  $("mktCandClose").onclick = () => $("mktMask").classList.add("hidden");
+}
+
 async function mktInit() {
   try { mktProjects = await window.api.getProjects(); } catch (e) { mktProjects = { projects: [] }; }
 }
