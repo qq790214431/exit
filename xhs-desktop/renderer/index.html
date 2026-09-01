@@ -8,229 +8,201 @@
 </head>
 <body>
 <div class="bg-grid"></div>
-<header class="tech-header">
-  <div class="logo">◈ 小红书主页链接采集系统 <span class="ver">v2.0</span></div>
-  <div class="status" id="status">STANDBY</div>
-  <div class="login-chip" id="loginChip" title="小红书登录状态（采集笔记需登录）">未登录</div>
+
+<header class="topbar">
+  <div class="logo">◈ 小红书营销工作台 <span class="ver">v3.0</span></div>
+  <div class="topbar-right">
+    <div class="status" id="status">STANDBY</div>
+    <div class="login-chip" id="loginChip" title="小红书登录状态（采集笔记需登录）">未登录</div>
+  </div>
 </header>
 
-<section class="stats-row">
-  <div class="stat-card"><div class="stat-label">总账号</div><div class="stat-value" id="stTotal">-</div></div>
-  <div class="stat-card"><div class="stat-label">已成功</div><div class="stat-value" id="stOk">-</div></div>
-  <div class="stat-card"><div class="stat-label">粉丝总数</div><div class="stat-value" id="stFansTotal">-</div></div>
-  <div class="stat-card"><div class="stat-label">平均粉丝</div><div class="stat-value" id="stFansAvg">-</div></div>
-  <div class="stat-card"><div class="stat-label">1万+达人</div><div class="stat-value" id="stFans10k">-</div></div>
-  <div class="stat-card"><div class="stat-label">失败/放弃</div><div class="stat-value" id="stFail">-</div></div>
-</section>
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-title">流程引导</div>
+      <button class="nav" data-view="pipeline">① 导入→采集→导出</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-title">数据</div>
+      <button class="nav" data-view="list">达人列表</button>
+      <button class="nav" data-view="rank">涨粉榜</button>
+      <button class="nav" data-view="dash">数据看板</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-title">营销</div>
+      <button class="nav" data-view="marketing">全案营销</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-title">采集工具</div>
+      <button class="nav" data-view="import">导入链接</button>
+      <button class="nav" data-view="tools">数据工具</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-title">导出中心</div>
+      <button class="nav" data-view="export">导出</button>
+    </div>
+  </aside>
 
-<section class="panel data-dir">
-  <span class="label">数据目录</span>
-  <span class="path mono" id="dataDir">-</span>
-  <select id="recentDirs" title="最近使用的目录"><option value="">最近目录…</option></select>
-  <button id="pickDirBtn">选择目录</button>
-  <button id="openDirBtn">打开</button>
-</section>
+  <main class="content">
+    <!-- 采集控制条 -->
+    <section class="panel control-bar">
+      <span class="label">数据目录</span>
+      <span class="path mono" id="dataDir">-</span>
+      <select id="recentDirs" title="最近使用的目录"><option value="">最近目录…</option></select>
+      <button id="pickDirBtn">选择目录</button>
+      <button id="openDirBtn">打开</button>
+      <span class="sep"></span>
+      <label>并发 <input id="concurrency" type="number" min="1" max="8" value="3" /></label>
+      <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
+      <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
+      <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
+      <button id="startBtn" class="primary glow">▶ 开始采集</button>
+      <button id="stopBtn" class="danger">■ 停止</button>
+    </section>
 
-<section class="panel settings">
-  <label>并发 <input id="concurrency" type="number" min="1" max="8" value="3" /></label>
-  <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
-  <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
-  <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
-  <label>互动权重 <input id="interactWeight" type="number" min="0" max="30" value="20" title="互动表现加分上限" /></label>
-  <label>涨粉权重 <input id="growthWeight" type="number" min="0" max="20" value="12" title="涨粉速度加分上限" /></label>
-  <label class="chk"><input type="checkbox" id="scheduleEnabled" /> 定时刷新</label>
-  <label class="chk"><input type="checkbox" id="reportEnabled" /> 周报定时</label>
-  <select id="reportDay"><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="0">周日</option></select>
-  <input type="time" id="reportTime" value="09:00" title="每周此时自动生成周报" />
-  <input type="time" id="scheduleTime" value="03:00" title="每天此时自动刷新粉丝数" />
-  <span class="sep"></span>
-  <button id="startBtn" class="primary glow">▶ 开始采集</button>
-  <button id="stopBtn" class="danger">■ 停止</button>
-</section>
+    <section class="panel progress-area">
+      <div class="bar-label"><span id="overallText">0 / 0</span><span id="roundText"></span><span id="percent">0%</span></div>
+      <div class="bar"><div class="fill" id="overallBar"></div></div>
+      <div class="chips" id="chips"></div>
+    </section>
 
-<section class="panel toolbar">
-  <span class="label">快捷操作</span>
-  <button id="refillBtn" title="只重采缺粉丝数/地区的账号">补全缺失</button>
-  <button id="refreshBtn" title="重采所有成功账号，刷新粉丝数（用于涨粉分析）">刷新粉丝</button>
-  <button id="retryBtn" title="清除放弃标记并重试失败账号">重试失败</button>
-  <button id="compactBtn" title="压缩 progress.jsonl（每账号保留最新一条）">压缩进度</button>
-  <button id="importBtn">导入链接</button>
-  <span class="sep"></span>
-  <button id="exportBtn" title="导出 CSV">CSV</button>
-  <button id="exportXlsxBtn" title="导出 Excel">Excel</button>
-  <button id="exportFilteredBtn" title="导出当前筛选结果">导出筛选</button>
-  <button id="growthBtn" title="打开涨粉分析 CSV">涨粉分析</button>
-  <button id="backupBtn" title="打包备份全部数据">备份</button>
-  <button id="captchaBtn" title="打开验证码截图目录">验证码截图</button>
-  <button id="reportBtn" title="生成并打开达人库周报">周报</button>
-  <button id="profileBtn" title="导出达人运营档案（备注/标签/黑名单）">导出档案</button>
-  <button id="loginBtn" title="扫码登录小红书（采集笔记前需登录一次）">登录</button>
-  <button id="notesBtn" title="采集当前筛选账号的笔记（赞/评/藏）">采集笔记</button>
-  <button id="compareBtn" title="对比勾选的 2-3 个达人">对比</button>
-  <button id="checkBtn" title="数据健康巡检">巡检</button>
-  <button id="updateBtn" title="检查新版本">检查更新</button>
-  <button id="captchaListBtn" title="查看验证码记录与截图">验证码记录</button>
-</section>
+    <!-- 视图容器 -->
+    <section id="viewPipeline" class="view hidden">
+      <div class="pipeline-grid" id="pipelineGrid"></div>
+    </section>
 
-<section class="panel progress-area">
-  <div class="bar-label">
-    <span id="overallText">0 / 0</span>
-    <span id="roundText"></span>
-    <span id="percent">0%</span>
-  </div>
-  <div class="bar"><div class="fill" id="overallBar"></div></div>
-  <div class="chips" id="chips"></div>
-</section>
+    <section id="viewList" class="view">
+      <section class="panel filter-bar">
+        <input id="search" type="text" placeholder="🔍 搜索昵称 / 小红书号 / 地区…" />
+        <select id="regionFilter"><option value="">全部地区</option></select>
+        <input id="fansMin" type="number" placeholder="粉丝≥" min="0" /><span class="tilde">~</span>
+        <input id="fansMax" type="number" placeholder="粉丝≤" min="0" />
+        <select id="tierFilter"><option value="">全部分群</option><option>素人</option><option>尾部</option><option>腰部</option><option>头部</option></select>
+        <input id="industryFilter" type="text" placeholder="行业关键词…" />
+        <select id="interactFilter"><option value="">互动基准</option><option value="high">高于同群基准</option><option value="low">低于同群基准</option></select>
+        <select id="statusFilter"><option value="">全部状态</option><option value="ok">成功</option><option value="captcha">验证码</option><option value="error">错误</option><option value="no_data">无数据</option></select>
+        <select id="blacklistFilter"><option value="">全部(含拉黑)</option><option value="normal">仅正常</option><option value="black">仅拉黑</option></select>
+        <button id="clearFilter" class="ghost">清空筛选</button>
+        <span class="filter-count" id="filterCount"></span>
+      </section>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:34px"><input type="checkbox" id="checkAll" title="全选" /></th>
+            <th data-key="score">评分 ⇅</th>
+            <th data-key="nickname">昵称 ⇅</th>
+            <th data-key="red_id">小红书号 ⇅</th>
+            <th data-key="region">地区属地 ⇅</th>
+            <th data-key="followers">粉丝数 ⇅</th>
+            <th data-key="followers_num">粉丝(数值) ⇅</th>
+            <th data-key="likes_collects_num">获赞收藏 ⇅</th>
+            <th data-key="interaction_ratio">互动率 ⇅</th>
+            <th data-key="avg_likes">均赞/篇 ⇅</th>
+            <th data-key="tier">分群 ⇅</th>
+            <th data-key="age">年龄 ⇅</th>
+            <th data-key="constellation">星座 ⇅</th>
+            <th data-key="industry">行业 ⇅</th>
+            <th>备注/标签</th>
+            <th data-key="status">状态 ⇅</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
 
-<section class="panel filter-bar">
-  <input id="search" type="text" placeholder="🔍 搜索昵称 / 小红书号 / 地区…" />
-  <select id="regionFilter"><option value="">全部地区</option></select>
-  <input id="fansMin" type="number" placeholder="粉丝≥" min="0" />
-  <span class="tilde">~</span>
-  <input id="fansMax" type="number" placeholder="粉丝≤" min="0" />
-  <select id="tierFilter"><option value="">全部分群</option><option>素人</option><option>尾部</option><option>腰部</option><option>头部</option></select>
-  <input id="industryFilter" type="text" placeholder="行业关键词…" />
-  <select id="interactFilter"><option value="">互动基准</option><option value="high">高于同群基准</option><option value="low">低于同群基准</option></select>
-  <select id="statusFilter">
-    <option value="">全部状态</option>
-    <option value="ok">成功</option>
-    <option value="captcha">验证码</option>
-    <option value="error">错误</option>
-    <option value="no_data">无数据</option>
-  </select>
-  <select id="blacklistFilter"><option value="">全部(含拉黑)</option><option value="normal">仅正常</option><option value="black">仅拉黑</option></select>
-  <button id="clearFilter" class="ghost">清空筛选</button>
-  <span class="filter-count" id="filterCount"></span>
-</section>
+    <section id="viewRank" class="view hidden">
+      <div class="rank-toolbar panel"><span class="label">涨粉榜（基于 snapshots 历史快照，需 ≥2 个时间点）</span><button id="rankRefresh">刷新</button><span class="filter-count" id="rankCount"></span></div>
+      <div class="rank-body">
+        <div class="rank-table-wrap"><table><thead><tr><th>#</th><th>昵称</th><th>地区</th><th>分群</th><th>基线粉丝</th><th>当前粉丝</th><th>涨粉</th><th>涨幅%</th><th>快照数</th></tr></thead><tbody id="rankTbody"></tbody></table></div>
+        <div class="rank-chart-box"><div class="chart-title">◤ 涨粉 TOP10</div><div id="chartRank" class="chart" style="height:300px"></div></div>
+      </div>
+    </section>
 
-<div class="tabs">
-  <button id="tabList" class="tab active">达人列表</button>
-  <button id="tabRank" class="tab">涨粉榜</button>
-  <button id="tabDash" class="tab">数据看板</button>
+    <section id="viewDash" class="view hidden">
+      <div class="dash-row"><div class="chart-box"><div class="chart-title">◤ 粉丝总量趋势</div><div id="chartTrend" class="chart" style="height:220px"></div></div><div class="chart-box"><div class="chart-title">◤ 分群占比</div><div id="chartTierPie" class="chart" style="height:220px"></div></div></div>
+      <div class="dash-row"><div class="chart-box"><div class="chart-title">◤ 地区 TOP10</div><div id="chartDashRegion" class="chart" style="height:220px"></div></div><div class="chart-box"><div class="chart-title">◤ 互动率分布</div><div id="chartRatioDist" class="chart" style="height:220px"></div></div></div>
+      <div class="dash-row"><div class="chart-box"><div class="chart-title">◤ 笔记互动趋势（按月均赞）</div><div id="chartNotesTrend" class="chart" style="height:220px"></div></div><div class="chart-box"><div class="chart-title">◤ 说明</div><div style="padding:16px;color:#6b84b0;font-size:12px;line-height:1.8">笔记趋势基于 notes_data.jsonl（需先登录并采集笔记）。<br/>均赞/篇 = 真实内容互动指标。</div></div></div>
+      <div class="dash-summary" id="dashSummary"></div>
+      <div class="dash-actions"><button id="dashExportBtn">导出看板图片</button></div>
+    </section>
+
+    <section id="viewMarketing" class="view hidden">
+      <div class="marketing-hero"><div class="mh-title">◇ 全案营销工作区</div><div class="mh-sub" id="mhSub">拆解业务 → 调研市场 → 理解业务 → 开发计划 → 落地执行</div></div>
+      <div id="marketingStage"></div>
+    </section>
+
+    <section id="viewImport" class="view hidden">
+      <div class="big-card">
+        <div class="big-title">◇ 导入分享链接</div>
+        <div class="big-sub">粘贴小红书分享链接（每行一个）或选择 .txt 文件，导入后自动生成采集清单</div>
+        <textarea id="linksText" placeholder="https://www.xiaohongshu.com/user/profile/xxxx?xsec_token=...&#10;https://xhslink.com/xxx&#10;或 APP 分享文本…"></textarea>
+        <div class="big-actions">
+          <button id="modalPickFile">选择文件(.txt)</button>
+          <button id="modalOk" class="primary">导入并生成清单</button>
+          <button id="gotoCollect" class="ghost">导入后去采集 →</button>
+        </div>
+        <pre id="importResult"></pre>
+      </div>
+    </section>
+
+    <section id="viewTools" class="view hidden">
+      <div class="tools-grid">
+        <div class="tool-card"><div class="tool-title">补全缺失</div><div class="tool-desc">只重采缺粉丝数/地区的账号</div><button id="refillBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">刷新粉丝</div><div class="tool-desc">重采所有成功账号（涨粉分析用）</div><button id="refreshBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">重试失败</div><div class="tool-desc">清除放弃标记并重试失败账号</div><button id="retryBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">压缩进度</div><div class="tool-desc">progress.jsonl 保留每账号最新一条</div><button id="compactBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">登录小红书</div><div class="tool-desc">扫码登录（采集笔记前需一次）</div><button id="loginBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">采集笔记</div><div class="tool-desc">当前筛选前10账号 × 前10篇</div><button id="notesBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">数据巡检</div><div class="tool-desc">健康检查：清单/采集率/登录态</div><button id="checkBtn">执行</button></div>
+        <div class="tool-card"><div class="tool-title">检查更新</div><div class="tool-desc">检测新版本并自动更新</div><button id="updateBtn">执行</button></div>
+      </div>
+    </section>
+
+    <section id="viewExport" class="view hidden">
+      <div class="tools-grid">
+        <div class="tool-card"><div class="tool-title">导出 CSV</div><div class="tool-desc">全部达人数据（UTF-8 BOM）</div><button id="exportBtn">导出</button></div>
+        <div class="tool-card"><div class="tool-title">导出 Excel</div><div class="tool-desc">xhs_profiles.xlsx</div><button id="exportXlsxBtn">导出</button></div>
+        <div class="tool-card"><div class="tool-title">导出筛选结果</div><div class="tool-desc">当前筛选/排序的行</div><button id="exportFilteredBtn">导出</button></div>
+        <div class="tool-card"><div class="tool-title">运营档案</div><div class="tool-desc">备注/标签/黑名单汇总</div><button id="profileBtn">导出</button></div>
+        <div class="tool-card"><div class="tool-title">达人周报</div><div class="tool-desc">生成并打开周报</div><button id="reportBtn">生成</button></div>
+        <div class="tool-card"><div class="tool-title">看板图片</div><div class="tool-desc">数据看板导出 PNG</div><button id="dashExportBtn">导出</button></div>
+        <div class="tool-card"><div class="tool-title">达人对比</div><div class="tool-desc">勾选列表 1-4 人对比</div><button id="compareBtn">对比</button></div>
+      </div>
+    </section>
+  </main>
 </div>
 
-<section id="viewList">
-<section class="charts">
-  <div class="chart-box"><div class="chart-title">◤ 地区分布 TOP15</div><div id="chartRegion" class="chart"></div></div>
-  <div class="chart-box"><div class="chart-title">◤ 粉丝数区间分布</div><div id="chartFans" class="chart"></div></div>
-</section>
+<!-- 对比弹窗 -->
+<div id="compareMask" class="modal-mask hidden">
+  <div class="modal modal-wide">
+    <div class="modal-title">◇ 达人对比</div>
+    <div class="compare-wrap"><table id="compareTable"></table><div id="chartCompare" class="chart" style="height:260px"></div></div>
+    <div class="modal-actions"><button id="compareClose">关闭</button></div>
+  </div>
+</div>
 
-</section>
-</section>
-
-<section id="viewDash" class="hidden">
-  <div class="dash-row">
-    <div class="chart-box"><div class="chart-title">◤ 粉丝总量趋势</div><div id="chartTrend" class="chart" style="height:220px"></div></div>
-    <div class="chart-box"><div class="chart-title">◤ 分群占比</div><div id="chartTierPie" class="chart" style="height:220px"></div></div>
-  </div>
-  <div class="dash-row">
-    <div class="chart-box"><div class="chart-title">◤ 地区 TOP10</div><div id="chartDashRegion" class="chart" style="height:220px"></div></div>
-    <div class="chart-box"><div class="chart-title">◤ 互动率分布</div><div id="chartRatioDist" class="chart" style="height:220px"></div></div>
-  </div>
-  <div class="dash-row">
-    <div class="chart-box"><div class="chart-title">◤ 笔记互动趋势（按月均赞）</div><div id="chartNotesTrend" class="chart" style="height:220px"></div></div>
-    <div class="chart-box"><div class="chart-title">◤ 说明</div><div style="padding:16px;color:#6b84b0;font-size:12px;line-height:1.8">笔记趋势基于 notes_data.jsonl（需先登录并采集笔记）。<br/>均赞/篇 = 真实内容互动指标，优于"获赞收藏/粉丝"代理。</div></div>
-  </div>
-  <div class="dash-summary" id="dashSummary"></div>
-  <div class="dash-actions"><button id="dashExportBtn">导出看板图片</button></div>
-</section>
-
-<section id="viewRank" class="hidden">
-  <div class="rank-toolbar panel">
-    <span class="label">涨粉榜（基于 snapshots 历史快照，需 ≥2 个时间点）</span>
-    <button id="rankRefresh">刷新</button>
-    <span class="filter-count" id="rankCount"></span>
-  </div>
-  <div class="rank-body">
-    <div class="rank-table-wrap">
-      <table>
-        <thead><tr><th>#</th><th>昵称</th><th>地区</th><th>分群</th><th>基线粉丝</th><th>当前粉丝</th><th>涨粉</th><th>涨幅%</th><th>快照数</th></tr></thead>
-        <tbody id="rankTbody"></tbody>
-      </table>
+<!-- 详情弹窗 -->
+<div id="trendMask" class="modal-mask hidden">
+  <div class="modal modal-wide">
+    <div class="modal-title" id="trendTitle">◇ 达人详情</div>
+    <div id="chartTrend2" class="chart" style="height:260px"></div>
+    <div class="detail-form">
+      <div class="form-row"><label>备注</label><input id="noteInput" type="text" placeholder="如：已邀约 / 重点跟进 / 已合作" /></div>
+      <div class="form-row"><label>标签</label><input id="noteTagsInput" type="text" placeholder="逗号分隔，如：重点,母婴" /></div>
+      <div class="form-row"><label class="chk"><input type="checkbox" id="blacklistChk" /> 拉黑此达人（排除出推荐）</label></div>
     </div>
-    <div class="rank-chart-box">
-      <div class="chart-title">◤ 涨粉 TOP10</div>
-      <div id="chartRank" class="chart" style="height:300px"></div>
-    </div>
+    <div class="modal-actions"><button id="noteSave" class="primary">保存备注</button><button id="trendClose">关闭</button></div>
   </div>
-</section>
+</div>
 
-<main>
-  <div class="table-wrap">
-    <table>
-      <thead><tr>
-        <th style="width:34px"><input type="checkbox" id="checkAll" title="全选" /></th>
-        <th data-key="score">评分 ⇅</th>
-        <th data-key="nickname">昵称 ⇅</th>
-        <th data-key="red_id">小红书号 ⇅</th>
-        <th data-key="region">地区属地 ⇅</th>
-        <th data-key="followers">粉丝数 ⇅</th>
-        <th data-key="followers_num">粉丝(数值) ⇅</th>
-        <th data-key="likes_collects_num">获赞收藏 ⇅</th>
-        <th data-key="interaction_ratio">互动率 ⇅</th>
-        <th data-key="avg_likes">均赞/篇 ⇅</th>
-        <th data-key="tier">分群 ⇅</th>
-        <th data-key="age">年龄 ⇅</th>
-        <th data-key="constellation">星座 ⇅</th>
-        <th data-key="industry">行业 ⇅</th>
-        <th>备注/标签</th>
-        <th data-key="status">状态 ⇅</th>
-      </tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-  <div class="log-wrap">
-    <div class="log-title">▚ 运行日志</div>
-    <pre id="log"></pre>
-  </div>
-</main>
-
+<!-- 验证码记录弹窗 -->
 <div id="captchaMask" class="modal-mask hidden">
   <div class="modal modal-wide">
     <div class="modal-title">◇ 验证码记录</div>
     <div id="captchaList" class="captcha-list"></div>
     <div class="captcha-preview"><img id="captchaImg" alt="" /></div>
     <div class="modal-actions"><button id="captchaClose">关闭</button></div>
-  </div>
-</div>
-
-<div id="compareMask" class="modal-mask hidden">
-  <div class="modal modal-wide">
-    <div class="modal-title">◇ 达人对比</div>
-    <div class="compare-wrap">
-      <table id="compareTable"></table>
-      <div id="chartCompare" class="chart" style="height:260px"></div>
-    </div>
-    <div class="modal-actions"><button id="compareClose">关闭</button></div>
-  </div>
-</div>
-
-<div id="trendMask" class="modal-mask hidden">
-  <div class="modal">
-    <div class="modal-title" id="trendTitle">◇ 达人详情</div>
-    <div id="chartTrend" class="chart" style="height:260px"></div>
-    <div class="detail-form">
-      <div class="form-row"><label>备注</label><input id="noteInput" type="text" placeholder="如：已邀约 / 重点跟进 / 已合作" /></div>
-      <div class="form-row"><label>标签</label><input id="noteTagsInput" type="text" placeholder="逗号分隔，如：重点,母婴" /></div>
-      <div class="form-row"><label class="chk"><input type="checkbox" id="blacklistChk" /> 拉黑此达人（排除出推荐）</label></div>
-    </div>
-    <div class="modal-actions">
-      <button id="noteSave" class="primary">保存备注</button>
-      <button id="trendClose">关闭</button>
-    </div>
-  </div>
-</div>
-
-<div id="modalMask" class="modal-mask hidden">
-  <div class="modal">
-    <div class="modal-title">◇ 导入分享链接</div>
-    <textarea id="linksText" placeholder="粘贴小红书分享链接，每行一个&#10;支持：完整主页链接 / xhslink 短链 / APP 分享文本&#10;导入后自动合并生成 urlmap.json"></textarea>
-    <div class="modal-actions">
-      <button id="modalPickFile">选择文件(.txt)</button>
-      <button id="modalCancel">取消</button>
-      <button id="modalOk" class="primary">导入并生成清单</button>
-    </div>
-    <pre id="importResult"></pre>
   </div>
 </div>
 
