@@ -16,6 +16,9 @@ jobs:
       - name: 单元测试
         working-directory: xhs采集
         run: node test_units.js
+      - name: 营销模块测试
+        working-directory: xhs采集
+        run: node test_marketing.js
 
   build-mac:
     needs: test
