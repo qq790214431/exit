@@ -296,6 +296,28 @@ ipcMain.handle("import-links", async (e, text) => {
   await new Promise(resolve => c.on("exit", resolve));
   return { result: out, state: readState(dataDir) };
 });
+ipcMain.handle("export-profiles", () => {
+  const st = readState(dataDir);
+  const notes = loadNotes();
+  const profiles = st.rows.filter(r => r.status === "ok").map(r => {
+    const n = notes[r.user_id] || {};
+    return { ...r, note: n.note || "", user_tags: (n.tags || []).join(","), blacklisted: !!n.blacklisted };
+  });
+  let md = `# 达人运营档案（${new Date().toISOString().slice(0, 10)}）\n\n共 ${profiles.length} 个达人\n\n`;
+  for (const p of profiles) {
+    md += `## ${p.nickname}${p.blacklisted ? " 🔒" : ""}\n`;
+    md += `- 小红书号：${p.red_id} | 地区：${p.region} | 分群：${p.tier}\n`;
+    md += `- 粉丝：${p.followers}（${p.followers_num}）| 互动率：${p.interaction_ratio}\n`;
+    md += `- 标签：${p.user_tags || "-"} | 备注：${p.note || "-"}\n\n`;
+  }
+  fs.writeFileSync(path.join(dataDir, "xhs_creator_profiles.md"), md);
+  const rows = profiles.map(p => ({ 昵称: p.nickname, 小红书号: p.red_id, 地区: p.region, 分群: p.tier, 粉丝: p.followers, 粉丝数值: p.followers_num, 互动率: p.interaction_ratio, 标签: p.user_tags, 备注: p.note, 黑名单: p.blacklisted ? "是" : "否", user_id: p.user_id }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "达人档案");
+  XLSX.writeFile(wb, path.join(dataDir, "xhs_creator_profiles.xlsx"));
+  win.webContents.send("log", `已导出运营档案（${profiles.length} 个）→ xhs_creator_profiles.md/.xlsx\n`);
+  return readState(dataDir);
+});
 ipcMain.handle("export-rows", (e, rows) => {
   const cols = ["nickname", "red_id", "region", "followers", "followers_num", "likes_collects_num", "interaction_ratio", "tier", "age", "constellation", "industry", "status"];
   const clean = (rows || []).map(r => {
@@ -391,6 +413,26 @@ ipcMain.handle("read-image", (e, file) => {
 });
 ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
+ipcMain.handle("get-dashboard", () => {
+  const snapFile = path.join(dataDir, "snapshots.jsonl");
+  const byDay = {};
+  if (fs.existsSync(snapFile)) {
+    for (const line of fs.readFileSync(snapFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.followers_num == null) continue;
+        const day = j.ts.slice(0, 10);
+        byDay[day] = (byDay[day] || 0) + j.followers_num;
+      } catch (e) {}
+    }
+  }
+  const days = Object.keys(byDay).sort();
+  return {
+    trend: days.map(d => ({ day: d, total: byDay[d] })),
+    lastUpdate: days.length ? days[days.length - 1] : null
+  };
+});
 ipcMain.handle("get-growth-ranking", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
   const byId = {};
@@ -510,7 +552,10 @@ function createWindow() {
               noteSave: !!document.getElementById("noteSave"),
               scoreHeader: document.querySelectorAll("#viewList thead th").length,
               reportScheduleUI: !!document.getElementById("reportDay"),
-              captchaModal: !!document.getElementById("captchaMask")
+              captchaModal: !!document.getElementById("captchaMask"),
+              dashTab: !!document.getElementById("tabDash"),
+              dashView: !!document.getElementById("viewDash"),
+              profileBtn: !!document.getElementById("profileBtn")
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
