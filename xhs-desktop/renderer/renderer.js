@@ -13,23 +13,26 @@ let regionSelectInited = false;
 
 const TIER_BASE = { "素人": 20, "尾部": 40, "腰部": 60, "头部": 80 };
 let rankMap = {}; // user_id -> delta_pct（来自涨粉榜，评分用）
+const weights = { interact: 20, growth: 12 };
 async function loadRankMap() {
   try { const r = await window.api.getGrowthRanking(); rankMap = {}; for (const x of r) rankMap[x.user_id] = x.delta_pct; } catch (e) {}
 }
 function computeScore(row, median) {
   let s = TIER_BASE[row.tier] || 0;
+  const iw = (weights.interact || 20) / 20;
+  const gw = (weights.growth || 12) / 12;
   const ratio = parseFloat(row.interaction_ratio);
   if (!isNaN(ratio) && median != null && median > 0) {
-    if (ratio >= median * 1.5) s += 20;
-    else if (ratio >= median) s += 12;
-    else s += 4;
-  } else if (!isNaN(ratio)) s += 6;
+    if (ratio >= median * 1.5) s += 20 * iw;
+    else if (ratio >= median) s += 12 * iw;
+    else s += 4 * iw;
+  } else if (!isNaN(ratio)) s += 6 * iw;
   const dp = rankMap[row.user_id];
   if (dp != null) {
-    if (dp >= 20) s += 12;
-    else if (dp >= 5) s += 8;
-    else if (dp > 0) s += 4;
-    else if (dp < -10) s -= 8;
+    if (dp >= 20) s += 12 * gw;
+    else if (dp >= 5) s += 8 * gw;
+    else if (dp > 0) s += 4 * gw;
+    else if (dp < -10) s -= 8 * gw;
   }
   return Math.max(0, Math.min(100, Math.round(s)));
 }
@@ -376,7 +379,17 @@ window.api.getConfig().then(cfg => {
     if (cfg.cooldown != null) $("cooldown").value = cfg.cooldown;
     if (cfg.scheduleEnabled != null) $("scheduleEnabled").checked = !!cfg.scheduleEnabled;
     if (cfg.scheduleTime) $("scheduleTime").value = cfg.scheduleTime;
+    if (cfg.interactWeight) { weights.interact = Number(cfg.interactWeight); $("interactWeight").value = cfg.interactWeight; }
+    if (cfg.growthWeight) { weights.growth = Number(cfg.growthWeight); $("growthWeight").value = cfg.growthWeight; }
   }
+});
+["interactWeight", "growthWeight"].forEach(id => {
+  $(id).addEventListener("change", () => {
+    weights.interact = Number($("interactWeight").value) || 20;
+    weights.growth = Number($("growthWeight").value) || 12;
+    window.api.saveConfig({ interactWeight: weights.interact, growthWeight: weights.growth });
+    applyFilters();
+  });
 });
 ["scheduleEnabled", "scheduleTime"].forEach(id => {
   $(id).addEventListener("change", () => {
@@ -407,6 +420,7 @@ $("clearFilter").onclick = () => {
   $("tierFilter").value = ""; $("industryFilter").value = ""; $("interactFilter").value = ""; $("blacklistFilter").value = "";
   onFilterChange();
 };
+$("captchaBtn").onclick = () => window.api.openScreenshots();
 $("backupBtn").onclick = async () => {
   appendLog("\n[备份] 打包中...\n");
   const r = await window.api.backup();

@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("api", {
   exportXlsx: () => ipcRenderer.invoke("export-xlsx"),
   importLinks: (text) => ipcRenderer.invoke("import-links", text),
   openDir: () => ipcRenderer.invoke("open-dir"),
+  openScreenshots: () => ipcRenderer.invoke("open-screenshots"),
   getTrend: (userId) => ipcRenderer.invoke("get-trend", userId),
   getGrowthRanking: () => ipcRenderer.invoke("get-growth-ranking"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),
