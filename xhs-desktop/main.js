@@ -505,6 +505,33 @@ ipcMain.handle("export-dashboard", async () => {
   return readState(dataDir);
 });
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
+// ---------- 全案营销项目 ----------
+function projectsFile() { return path.join(dataDir, "projects", "projects.json"); }
+function loadProjects() {
+  try { return JSON.parse(fs.readFileSync(projectsFile(), "utf8")); } catch (e) { return { version: 1, projects: [] }; }
+}
+function saveProjects(data) {
+  const f = projectsFile();
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  if (fs.existsSync(f)) fs.copyFileSync(f, f + ".bak");
+  const tmp = f + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, f);
+}
+ipcMain.handle("get-projects", () => loadProjects());
+ipcMain.handle("save-project", (e, project) => {
+  const data = loadProjects();
+  const idx = data.projects.findIndex(p => p.id === project.id);
+  if (idx >= 0) data.projects[idx] = project; else data.projects.push(project);
+  saveProjects(data);
+  return loadProjects();
+});
+ipcMain.handle("delete-project", (e, id) => {
+  const data = loadProjects();
+  data.projects = data.projects.filter(p => p.id !== id);
+  saveProjects(data);
+  return loadProjects();
+});
 ipcMain.handle("get-dashboard", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
   const byDay = {};
@@ -618,38 +645,20 @@ function createWindow() {
             console.log("screenshot saved");
           }
           if (dumpArg) {
-            const info = await win.webContents.executeJavaScript(`(() => JSON.stringify({
-              title: document.title,
-              dataDir: document.getElementById("dataDir").textContent,
-              status: document.getElementById("status").textContent,
-              overall: document.getElementById("overallText").textContent,
-              tableRows: document.querySelectorAll("#tbody tr").length,
-              logLen: document.getElementById("log").textContent.length,
-              hasSearch: !!document.getElementById("search"),
-              regionOptions: document.getElementById("regionFilter").options.length,
-              chartCanvases: document.querySelectorAll(".chart canvas").length,
-              filterCount: document.getElementById("filterCount").textContent,
-              statCards: document.querySelectorAll(".stat-card").length,
-              scheduleUI: !!document.getElementById("scheduleTime"),
-              trendModal: !!document.getElementById("trendMask"),
-              tableHeaderCols: document.querySelectorAll("#tbody")[0] ? document.querySelectorAll("thead th").length : 0,
-              tabs: document.querySelectorAll(".tab").length,
-              rankView: !!document.getElementById("viewRank"),
-              tierFilter: !!document.getElementById("tierFilter"),
-              industryFilter: !!document.getElementById("industryFilter"),
-              interactFilter: !!document.getElementById("interactFilter"),
-              exportFilteredBtn: !!document.getElementById("exportFilteredBtn"),
-              backupBtn: !!document.getElementById("backupBtn"),
-              blacklistFilter: !!document.getElementById("blacklistFilter"),
-              noteSave: !!document.getElementById("noteSave"),
-              scoreHeader: document.querySelectorAll("#viewList thead th").length,
-              reportScheduleUI: !!document.getElementById("reportDay"),
-              captchaModal: !!document.getElementById("captchaMask"),
-              dashTab: !!document.getElementById("tabDash"),
-              dashView: !!document.getElementById("viewDash"),
-              profileBtn: !!document.getElementById("profileBtn")
-            }))()`);
-            fs.writeFileSync(dumpArg.split("=")[1], info);
+            const info = await win.webContents.executeJavaScript(`(() => {
+  const t = (id) => { const el = document.getElementById(id); return el ? el.textContent : ""; };
+  return JSON.stringify({
+    title: document.title,
+    dataDir: t("dataDir"),
+    status: t("status"),
+    overall: t("overallText"),
+    tableRows: document.querySelectorAll("#tbody tr").length,
+    filterCount: t("filterCount"),
+    views: ${JSON.stringify(["pipeline","list","rank","dash","marketing","import","tools","export"])}.filter(v => !!document.getElementById("view" + v[0].toUpperCase() + v.slice(1))),
+    sidebarNav: document.querySelectorAll(".nav").length
+  });
+})()`);
+fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
           }
         } catch (e) { console.error(e); }
