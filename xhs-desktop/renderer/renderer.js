@@ -90,10 +90,13 @@ function applyFilters() {
       <td>${esc(r.followers_num)}</td>
       <td>${esc(r.likes_collects_num)}</td>
       <td>${esc(r.interaction_ratio)}</td>
-      <td>${esc(r.tags)}</td>
+      <td>${esc(r.tier)}</td>
+      <td>${esc(r.age)}</td>
+      <td>${esc(r.constellation)}</td>
+      <td>${esc(r.industry)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="9" style="color:#6b84b0">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="13" style="color:#6b84b0">无匹配数据</td></tr>`;
   document.querySelectorAll("#tbody tr[data-uid]").forEach(tr => {
     tr.onclick = () => showTrend(tr.dataset.uid, tr.children[0].textContent);
   });
@@ -202,6 +205,38 @@ $("growthBtn").onclick = () => window.api.openDir();
 $("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) renderState(s); };
 $("openDirBtn").onclick = () => window.api.openDir();
 
+// 标签页切换
+$("tabList").onclick = () => { $("tabList").classList.add("active"); $("tabRank").classList.remove("active"); $("viewList").classList.remove("hidden"); $("viewRank").classList.add("hidden"); };
+$("tabRank").onclick = () => { $("tabRank").classList.add("active"); $("tabList").classList.remove("active"); $("viewRank").classList.remove("hidden"); $("viewList").classList.add("hidden"); loadRanking(); };
+let chartRank = null;
+async function loadRanking() {
+  const ranking = await window.api.getGrowthRanking();
+  $("rankCount").textContent = `可计算 ${ranking.length} 个账号`;
+  $("rankTbody").innerHTML = ranking.map((r, i) => `<tr>
+    <td>${i + 1}</td>
+    <td>${esc(r.nickname)}</td>
+    <td>${esc(r.region)}</td>
+    <td><span class="status-pill ok">${esc(r.tier)}</span></td>
+    <td>${r.base}</td>
+    <td>${r.now}</td>
+    <td style="color:${r.delta >= 0 ? "var(--green)" : "var(--red)"}">${r.delta >= 0 ? "+" : ""}${r.delta}</td>
+    <td>${r.delta_pct ?? "-"}</td>
+    <td>${r.snapshots}</td>
+  </tr>`).join("") || `<tr><td colspan="9" style="color:#6b84b0">暂无数据：需先 SEED/REFRESH 积累至少 2 个时间点的快照</td></tr>`;
+  if (!chartRank) chartRank = echarts.init($("chartRank"));
+  const top = ranking.slice(0, 10).reverse();
+  chartRank.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 40, top: 8, bottom: 8, containLabel: true },
+    xAxis: { type: "value", ...AXIS },
+    yAxis: { type: "category", data: top.map(r => r.nickname), axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" } },
+    series: [{ type: "bar", data: top.map(r => r.delta), barMaxWidth: 18,
+      itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: "#00e5ff" }, { offset: 1, color: "#00ff9d" }]), borderRadius: [0, 4, 4, 0] } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+}
+$("rankRefresh").onclick = loadRanking;
+
 // 粉丝趋势弹窗
 let chartTrend = null;
 async function showTrend(uid, nickname) {
@@ -285,7 +320,7 @@ document.querySelectorAll("th[data-key]").forEach(th => {
   };
 });
 
-window.addEventListener("resize", () => { if (chartRegion) chartRegion.resize(); if (chartFans) chartFans.resize(); });
+window.addEventListener("resize", () => { if (chartRegion) chartRegion.resize(); if (chartFans) chartFans.resize(); if (chartRank) chartRank.resize(); });
 
 window.api.getState().then(renderState);
 appendLog("就绪。选择数据目录后点击「开始采集」；快捷操作可一键补全/刷新/重试/压缩/导入链接。\n");

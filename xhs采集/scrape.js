@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { parseTags, computeTier, interactionRatio } = require("./lib.js");
 let playwright;
 try {
   playwright = require("playwright-core");
@@ -11,7 +12,7 @@ const CHROME = process.env.CHROME || "/Users/Admin/Library/Caches/ms-playwright/
 const OUT_DIR = __dirname;
 const PROGRESS = OUT_DIR + "/progress.jsonl";
 const CSV_PATH = OUT_DIR + "/xhs_profiles.csv";
-const CSV_COLS = ["user_id", "nickname", "red_id", "region", "ip", "tags", "following", "followers", "likes_collects", "likes_collects_num", "followers_num", "interaction_ratio", "status", "url", "ts"];
+const CSV_COLS = ["user_id", "nickname", "red_id", "region", "ip", "tags", "age", "constellation", "industry", "tier", "following", "followers", "likes_collects", "likes_collects_num", "followers_num", "interaction_ratio", "status", "url", "ts"];
 
 const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
 const MAX = Number(process.env.MAX || 0);
@@ -143,11 +144,12 @@ function exportCsv() {
         const j = JSON.parse(line);
         if (j.status !== "ok") continue;
         const jj = { ...j };
-        if (jj.likes_collects_num != null && jj.followers_num) {
-          jj.interaction_ratio = (jj.likes_collects_num / jj.followers_num).toFixed(2);
-        } else {
-          jj.interaction_ratio = "";
-        }
+        jj.interaction_ratio = interactionRatio(jj.likes_collects_num, jj.followers_num);
+        const pt = parseTags(jj.tags);
+        jj.age = pt.age;
+        jj.constellation = pt.constellation;
+        jj.industry = pt.industry;
+        jj.tier = computeTier(jj.followers_num);
         byId.set(j.user_id, CSV_COLS.map(c => csvEscape(jj[c])));
       } catch (e) {}
     }
