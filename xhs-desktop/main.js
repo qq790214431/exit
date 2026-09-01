@@ -698,6 +698,7 @@ function createWindow() {
     mktButtons: (M && Object.keys(M.stageButtons || {}).map(k => k + ":" + (M.stageButtons[k] || []).length)) || [],
     mktGate: !!(M && M.gate),
     mktActions: (M && Object.keys(M.listActions || {})) || [],
+    mktToolbar: (M && M.toolbarButtons.map(b => b.label)) || [],
     mktFunc
   });
 })()`);
