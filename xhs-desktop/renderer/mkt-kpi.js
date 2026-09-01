@@ -2,6 +2,8 @@
 // 通过 window.MKT.registerStageButton("execution", "KPI 达成评估", fn) 在 S5 页面注册按钮。
 // 流程：统计达人矩阵实际数据 + 任务完成率 → 生成 Markdown 评估报告 → 写入
 //       project.phases.execution.kpi_eval 并保存 → window.alert 展示（截断 4000 字符）。
+// 另暴露 window.MKT.genKpiEval(project) 复用函数（返回评估 Markdown），供"生成结案报告"调用，
+// 避免重复实现。
 window.MKT = window.MKT || {};
 
 (function () {
@@ -64,13 +66,13 @@ window.MKT = window.MKT || {};
     return String(v == null ? "" : v).replace(/\|/g, "\\|").replace(/\n/g, " ");
   }
 
-  // ---------- S5 页面按钮：KPI 达成评估 ----------
-  window.MKT.registerStageButton("execution", "KPI 达成评估", async (project) => {
-    const p = currentProject(project);
-    if (!p) {
-      window.alert("请先打开一个项目");
-      return;
-    }
+  // ---------- 可复用：生成 KPI 达成评估 Markdown ----------
+  // 传入项目对象，返回评估报告 Markdown（字符串）；无项目时返回 null。
+  // 同时把 { report, ...stats } 写入 window.mktKpiEval 供外部读取。
+  // 供 S5「KPI 达成评估」按钮与 A1「生成结案报告」复用，避免重复实现。
+  window.MKT.genKpiEval = async function (project) {
+    const p = project || currentProject(null);
+    if (!p) return null;
     p.phases = p.phases || {};
     p.phases.plan = p.phases.plan || {};
     p.phases.execution = p.phases.execution || {};
@@ -156,11 +158,34 @@ window.MKT = window.MKT || {};
     lines.push(interactLine);
 
     const report = lines.join("\n");
+    window.mktKpiEval = {
+      report,
+      matrixTotal,
+      matchedCount,
+      done,
+      taskTotal,
+      avgRatio,
+      target
+    };
+    return report;
+  };
+
+  // ---------- S5 页面按钮：KPI 达成评估 ----------
+  window.MKT.registerStageButton("execution", "KPI 达成评估", async (project) => {
+    const p = currentProject(project);
+    if (!p) {
+      window.alert("请先打开一个项目");
+      return;
+    }
+    const report = await window.MKT.genKpiEval(p);
+    if (report == null) return;
+
+    p.phases = p.phases || {};
+    p.phases.execution = p.phases.execution || {};
 
     // ---- 5) 写入 execution.kpi_eval 并保存 ----
     p.phases.execution.kpi_eval = report;
     p.phases.execution.kpi_eval_at = new Date().toISOString();
-    window.mktKpiEval = { matrixTotal, matchedCount, done, taskTotal, avgRatio, target, report };
     try {
       const updated = await window.api.saveProject(p);
       if (updated && Array.isArray(updated.projects)) window.MKT.projects = updated;

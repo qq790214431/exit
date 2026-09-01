@@ -557,6 +557,16 @@ ipcMain.handle("export-project", (e, project) => {
   shell.openPath(out);
   return true;
 });
+ipcMain.handle("get-templates", () => {
+  const f = path.join(dataDir, "projects", "templates.json");
+  try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return { version: 1, templates: [] }; }
+});
+ipcMain.handle("save-templates", (e, templates) => {
+  const f = path.join(dataDir, "projects", "templates.json");
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, JSON.stringify({ version: 1, templates }, null, 2));
+  return true;
+});
 ipcMain.handle("delete-project", (e, id) => {
   const data = loadProjects();
   data.projects = data.projects.filter(p => p.id !== id);
