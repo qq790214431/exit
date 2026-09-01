@@ -134,6 +134,9 @@ th { position: sticky; top: 0; background: #0a1322; color: var(--dim); font-size
 th[data-key] { cursor: pointer; user-select: none; }
 th[data-key]:hover { color: var(--cyan); }
 tbody tr:hover { background: rgba(0,229,255,.05); }
+.bench { font-size: 10px; margin-left: 4px; }
+.bench.high { color: var(--green); }
+.bench.low { color: var(--amber); }
 .status-pill { padding: 2px 9px; border-radius: 10px; font-size: 11px; font-family: var(--mono); }
 .status-pill.ok { color: var(--green); border: 1px solid rgba(0,255,157,.4); }
 .status-pill.captcha { color: var(--amber); border: 1px solid rgba(255,176,32,.4); }

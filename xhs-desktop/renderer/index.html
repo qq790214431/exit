@@ -51,6 +51,7 @@
   <span class="sep"></span>
   <button id="exportBtn" title="导出 CSV">CSV</button>
   <button id="exportXlsxBtn" title="导出 Excel">Excel</button>
+  <button id="exportFilteredBtn" title="导出当前筛选结果">导出筛选</button>
   <button id="growthBtn" title="打开涨粉分析 CSV">涨粉分析</button>
 </section>
 
@@ -70,6 +71,9 @@
   <input id="fansMin" type="number" placeholder="粉丝≥" min="0" />
   <span class="tilde">~</span>
   <input id="fansMax" type="number" placeholder="粉丝≤" min="0" />
+  <select id="tierFilter"><option value="">全部分群</option><option>素人</option><option>尾部</option><option>腰部</option><option>头部</option></select>
+  <input id="industryFilter" type="text" placeholder="行业关键词…" />
+  <select id="interactFilter"><option value="">互动基准</option><option value="high">高于同群基准</option><option value="low">低于同群基准</option></select>
   <select id="statusFilter">
     <option value="">全部状态</option>
     <option value="ok">成功</option>
