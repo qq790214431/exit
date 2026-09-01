@@ -18,10 +18,12 @@ const MAX = Number(process.env.MAX || 0);
 const RESCRAPE = process.env.RESCRAPE === "1";
 const EXPORT_ONLY = process.env.EXPORT_ONLY === "1";
 const REFILL_MISSING = process.env.REFILL_MISSING === "1";
+const REFRESH = process.env.REFRESH === "1";
 const COMPACT = process.env.COMPACT === "1";
 const RETRY_ABANDONED = process.env.RETRY_ABANDONED === "1";
 const MAX_FAIL = Number(process.env.MAX_FAIL || 3);
 const ABANDONED_PATH = OUT_DIR + "/abandoned.json";
+const SNAPSHOT_PATH = OUT_DIR + "/snapshots.jsonl";
 
 // 输入：默认 xhs采集/urlmap.json，缺失回退 /tmp/urlmap.json，可用 INPUT_JSON 覆盖
 const INPUT_JSON = process.env.INPUT_JSON || (fs.existsSync(OUT_DIR + "/urlmap.json") ? OUT_DIR + "/urlmap.json" : "/tmp/urlmap.json");
@@ -94,6 +96,7 @@ if (EXPORT_ONLY) { exportCsv(); process.exit(0); }
 let pending;
 if (RESCRAPE) pending = [...uids];
 else if (REFILL_MISSING) pending = missing.filter(u => !abandonedIds.has(u));
+else if (REFRESH) pending = uids.filter(u => latest[u] && latest[u].status === "ok");
 else pending = uids.filter(u => !(latest[u] && latest[u].status === "ok") && !abandonedIds.has(u));
 if (MAX > 0) pending = pending.slice(0, MAX);
 console.log(`Input: ${INPUT_JSON}, Total: ${uids.length}, ok: ${okCount}, missing: ${missing.length}, abandoned: ${abandonedIds.size}, pending: ${pending.length}`);
@@ -268,6 +271,9 @@ async function scrapeOne(page, uid, url, attempt) {
           result = await scrapeOne(page, uid, entry.url, 2);
         }
         fs.appendFileSync(PROGRESS, JSON.stringify(result) + "\n");
+        if (result.status === "ok") {
+          fs.appendFileSync(SNAPSHOT_PATH, JSON.stringify({ user_id: result.user_id, nickname: result.nickname || "", followers: result.followers || "", followers_num: result.followers_num ?? null, ts: result.ts }) + "\n");
+        }
         if (result.status === "captcha" || result.status === "error") {
           consecutiveCaptcha++;
           if (consecutiveCaptcha >= CAPTCHA_BURST_LIMIT) {

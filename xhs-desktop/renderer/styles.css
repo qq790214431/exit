@@ -24,7 +24,20 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .chip.ok { background: #e6f7e6; color: #2e7d32; }
 .chip.captcha { background: #fff3e0; color: #e65100; }
 .chip.error, .chip.no_data { background: #fdecea; color: #c62828; }
-main { display: flex; height: calc(100vh - 205px); }
+.filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+.filter-bar input[type="text"], .filter-bar input[type="number"] { width: 150px; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+.filter-bar input[type="number"] { width: 90px; }
+.filter-bar select { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff; }
+.filter-bar .tilde { color: #999; }
+.filter-bar button.ghost { padding: 5px 10px; }
+.filter-count { color: #999; font-size: 12px; margin-left: auto; }
+.charts { display: flex; gap: 12px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+.chart-box { flex: 1; border: 1px solid #eef0f3; border-radius: 8px; padding: 8px; }
+.chart-title { font-size: 12px; color: #666; margin-bottom: 4px; }
+.chart { height: 180px; }
+th[data-key] { cursor: pointer; user-select: none; }
+th[data-key]:hover { color: #ff2442; }
+main { display: flex; height: calc(100vh - 340px); }
 .table-wrap { flex: 1; overflow: auto; background: #fff; }
 table { border-collapse: collapse; width: 100%; min-width: 760px; }
 th, td { padding: 6px 10px; border-bottom: 1px solid #f0f1f3; text-align: left; white-space: nowrap; }
