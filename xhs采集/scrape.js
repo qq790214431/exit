@@ -17,23 +17,86 @@ const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
 const MAX = Number(process.env.MAX || 0);
 const RESCRAPE = process.env.RESCRAPE === "1";
 const EXPORT_ONLY = process.env.EXPORT_ONLY === "1";
+const REFILL_MISSING = process.env.REFILL_MISSING === "1";
+const COMPACT = process.env.COMPACT === "1";
+const RETRY_ABANDONED = process.env.RETRY_ABANDONED === "1";
+const MAX_FAIL = Number(process.env.MAX_FAIL || 3);
+const ABANDONED_PATH = OUT_DIR + "/abandoned.json";
 
 // 输入：默认 xhs采集/urlmap.json，缺失回退 /tmp/urlmap.json，可用 INPUT_JSON 覆盖
 const INPUT_JSON = process.env.INPUT_JSON || (fs.existsSync(OUT_DIR + "/urlmap.json") ? OUT_DIR + "/urlmap.json" : "/tmp/urlmap.json");
 const urlmap = JSON.parse(fs.readFileSync(INPUT_JSON, "utf8"));
 const uids = Object.keys(urlmap).sort();
 
-// resume
-const done = new Set();
-if (!RESCRAPE && fs.existsSync(PROGRESS)) {
-  for (const line of fs.readFileSync(PROGRESS, "utf8").trim().split("\n")) {
-    if (!line) continue;
-    try { const j = JSON.parse(line); if (j.status === "ok") done.add(j.user_id); } catch (e) {}
+// 读取进度：latest=每账号最新记录；failCount=非 ok 累计次数
+function readProgress() {
+  const latest = {};
+  const failCount = {};
+  if (fs.existsSync(PROGRESS)) {
+    for (const line of fs.readFileSync(PROGRESS, "utf8").trim().split("\n")) {
+      if (!line) continue;
+      try {
+        const j = JSON.parse(line);
+        latest[j.user_id] = j;
+        if (j.status !== "ok") failCount[j.user_id] = (failCount[j.user_id] || 0) + 1;
+      } catch (e) {}
+    }
   }
+  return { latest, failCount };
 }
-let pending = RESCRAPE ? [...uids] : uids.filter(u => !done.has(u));
+
+function loadAbandoned() { try { return JSON.parse(fs.readFileSync(ABANDONED_PATH, "utf8")); } catch (e) { return {}; } }
+function saveAbandoned(map) { fs.writeFileSync(ABANDONED_PATH, JSON.stringify(map, null, 2)); }
+
+let abandoned = loadAbandoned();
+if (RETRY_ABANDONED) {
+  const n = Object.keys(abandoned).length;
+  abandoned = {};
+  saveAbandoned(abandoned);
+  console.log(`RETRY_ABANDONED: 已清除 ${n} 个放弃标记，本轮重试`);
+}
+
+const { latest, failCount } = readProgress();
+// 失败治理：最新状态非 ok 且累计失败 >= MAX_FAIL 次 → 标记放弃并跳过（RETRY_ABANDONED 时本轮不再自动标记）
+if (!RETRY_ABANDONED) {
+  let newlyAbandoned = 0;
+  for (const uid of uids) {
+    const l = latest[uid];
+    if (l && l.status !== "ok" && (failCount[uid] || 0) >= MAX_FAIL && !abandoned[uid]) {
+      abandoned[uid] = { reason: l.status, attempts: failCount[uid], last_ts: l.ts || "", nickname: l.nickname || "" };
+      newlyAbandoned++;
+    }
+  }
+  if (newlyAbandoned > 0) { saveAbandoned(abandoned); console.log(`失败治理: 标记 ${newlyAbandoned} 个账号为已放弃（连续失败≥${MAX_FAIL} 次）`); }
+}
+const abandonedIds = new Set(Object.keys(abandoned));
+
+// 补全模式：ok 但缺粉丝数/地区的记录
+const okCount = Object.values(latest).filter(j => j.status === "ok").length;
+const missing = uids.filter(u => {
+  const l = latest[u];
+  return l && l.status === "ok" && (!l.followers || !l.region);
+});
+
+// COMPACT：压缩 progress.jsonl 为每账号最新一条（备份原文件）
+if (COMPACT) {
+  const rawLines = fs.existsSync(PROGRESS) ? fs.readFileSync(PROGRESS, "utf8").trim().split("\n").filter(Boolean) : [];
+  fs.copyFileSync(PROGRESS, PROGRESS + ".bak");
+  const lines = Object.values(latest).sort((a, b) => (a.user_id < b.user_id ? -1 : 1)).map(j => JSON.stringify(j));
+  fs.writeFileSync(PROGRESS, lines.join("\n") + "\n");
+  console.log(`COMPACT: ${rawLines.length} 行 → ${lines.length} 条（每账号最新一条），原文件已备份 progress.jsonl.bak`);
+  process.exit(0);
+}
+
+if (EXPORT_ONLY) { exportCsv(); process.exit(0); }
+
+// 选择待采集
+let pending;
+if (RESCRAPE) pending = [...uids];
+else if (REFILL_MISSING) pending = missing.filter(u => !abandonedIds.has(u));
+else pending = uids.filter(u => !(latest[u] && latest[u].status === "ok") && !abandonedIds.has(u));
 if (MAX > 0) pending = pending.slice(0, MAX);
-console.log(`Input: ${INPUT_JSON}, Total: ${uids.length}, done: ${done.size}, pending: ${pending.length}`);
+console.log(`Input: ${INPUT_JSON}, Total: ${uids.length}, ok: ${okCount}, missing: ${missing.length}, abandoned: ${abandonedIds.size}, pending: ${pending.length}`);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rnd = (a, b) => a + Math.random() * (b - a);
