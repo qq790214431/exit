@@ -1,7 +1,7 @@
 // 自动化单元测试：lib.js（分群/标签/互动率）+ import_links.js（链接解析）
 const assert = require("assert");
 const fs = require("fs");
-const { parseTags, computeTier, interactionRatio } = require("./lib.js");
+const { parseTags, computeTier, interactionRatio, computeScore } = require("./lib.js");
 
 let pass = 0, fail = 0;
 function eq(name, got, expected) {
@@ -31,6 +31,13 @@ eq("ratio 3.00", interactionRatio(36000, 12000), "3.00");
 eq("ratio 0.12", interactionRatio(96, 800), "0.12");
 eq("ratio 粉丝为0", interactionRatio(100, 0), "");
 eq("ratio 获赞为空", interactionRatio(null, 12000), "");
+
+// --- computeScore ---
+eq("score 头部满配封顶", computeScore({ tier: "头部", ratio: 4, median: 2, deltaPct: 25 }), 100);
+eq("score 素人低互动下跌", computeScore({ tier: "素人", ratio: 1, median: 2, deltaPct: -20 }), 16);
+eq("score 腰部高互动", computeScore({ tier: "腰部", ratio: 3, median: 2, deltaPct: null }), 80);
+eq("score 尾部无基准", computeScore({ tier: "尾部", ratio: 0.5, median: null, deltaPct: 0 }), 46);
+eq("score 空数据", computeScore({ tier: "", ratio: null, median: null, deltaPct: null }), 0);
 
 // --- import_links.js 解析函数 ---
 const src = fs.readFileSync(__dirname + "/import_links.js", "utf8");

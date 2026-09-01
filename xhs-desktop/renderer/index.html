@@ -53,6 +53,7 @@
   <button id="exportXlsxBtn" title="导出 Excel">Excel</button>
   <button id="exportFilteredBtn" title="导出当前筛选结果">导出筛选</button>
   <button id="growthBtn" title="打开涨粉分析 CSV">涨粉分析</button>
+  <button id="backupBtn" title="打包备份全部数据">备份</button>
 </section>
 
 <section class="panel progress-area">
@@ -81,6 +82,7 @@
     <option value="error">错误</option>
     <option value="no_data">无数据</option>
   </select>
+  <select id="blacklistFilter"><option value="">全部(含拉黑)</option><option value="normal">仅正常</option><option value="black">仅拉黑</option></select>
   <button id="clearFilter" class="ghost">清空筛选</button>
   <span class="filter-count" id="filterCount"></span>
 </section>
@@ -123,6 +125,7 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
+        <th data-key="score">评分 ⇅</th>
         <th data-key="nickname">昵称 ⇅</th>
         <th data-key="red_id">小红书号 ⇅</th>
         <th data-key="region">地区属地 ⇅</th>
@@ -134,6 +137,7 @@
         <th data-key="age">年龄 ⇅</th>
         <th data-key="constellation">星座 ⇅</th>
         <th data-key="industry">行业 ⇅</th>
+        <th>备注/标签</th>
         <th data-key="status">状态 ⇅</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -147,9 +151,17 @@
 
 <div id="trendMask" class="modal-mask hidden">
   <div class="modal">
-    <div class="modal-title" id="trendTitle">◇ 粉丝趋势</div>
-    <div id="chartTrend" class="chart" style="height:300px"></div>
-    <div class="modal-actions"><button id="trendClose">关闭</button></div>
+    <div class="modal-title" id="trendTitle">◇ 达人详情</div>
+    <div id="chartTrend" class="chart" style="height:260px"></div>
+    <div class="detail-form">
+      <div class="form-row"><label>备注</label><input id="noteInput" type="text" placeholder="如：已邀约 / 重点跟进 / 已合作" /></div>
+      <div class="form-row"><label>标签</label><input id="noteTagsInput" type="text" placeholder="逗号分隔，如：重点,母婴" /></div>
+      <div class="form-row"><label class="chk"><input type="checkbox" id="blacklistChk" /> 拉黑此达人（排除出推荐）</label></div>
+    </div>
+    <div class="modal-actions">
+      <button id="noteSave" class="primary">保存备注</button>
+      <button id="trendClose">关闭</button>
+    </div>
   </div>
 </div>
 
