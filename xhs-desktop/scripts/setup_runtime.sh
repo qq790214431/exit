@@ -1,5 +1,5 @@
 #!/bin/bash
-# 构建 Windows 版前的运行时准备：下载 node.exe + 拷贝 playwright-core
+# 构建 Windows 版前的运行时准备：下载 node.exe + 安装 playwright-core
 # 用法: bash scripts/setup_runtime.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -16,13 +16,7 @@ if [ ! -f runtime/node/node.exe ]; then
 fi
 
 if [ ! -d runtime/node_modules/playwright-core ]; then
-  echo "拷贝 playwright-core ..."
-  NPM_ROOT=$(npm root -g 2>/dev/null || echo "")
-  SRC=""
-  for p in "$(npm root 2>/dev/null)/playwright-core" "$NPM_ROOT/playwright-core" /Users/Admin/.homebrew/npm-cache/_npx/*/node_modules/playwright-core; do
-    [ -d "$p" ] && SRC="$p" && break
-  done
-  [ -z "$SRC" ] && echo "未找到 playwright-core，请先 npm i playwright-core" && exit 1
-  cp -R "$SRC" runtime/node_modules/playwright-core
+  echo "安装 playwright-core ..."
+  npm install --prefix runtime playwright-core --no-audit --no-fund
 fi
 echo "运行时就绪: $(du -sh runtime/node runtime/node_modules | tr '\n' ' ')"

@@ -278,7 +278,28 @@ $("exportFilteredBtn").onclick = async () => {
   appendLog(`已导出: ${r.csv} / ${r.xlsx}\n`);
   $("exportFilteredBtn").disabled = false;
 };
-$("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) renderState(s); };
+$("pickDirBtn").onclick = async () => {
+  const s = await window.api.pickDir();
+  if (s) { renderState(s); refreshRecentDirs(); }
+};
+function refreshRecentDirs() {
+  window.api.getConfig().then(cfg => {
+    const sel = $("recentDirs");
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">最近目录…</option>' + (cfg.recentDirs || []).map(d =>
+      `<option value="${esc(d)}">${esc(d)}</option>`).join("");
+    sel.value = "";
+  });
+}
+$("recentDirs").addEventListener("change", async () => {
+  const v = $("recentDirs").value;
+  if (!v) return;
+  const s = await window.api.switchDir(v);
+  if (s) renderState(s);
+  refreshRecentDirs();
+});
+$("openDirBtn").onclick = () => window.api.openDir();
+window.api.getConfig().then(() => refreshRecentDirs());
 $("openDirBtn").onclick = () => window.api.openDir();
 
 // 标签页切换

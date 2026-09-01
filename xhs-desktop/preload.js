@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("api", {
   getConfig: () => ipcRenderer.invoke("get-config"),
   saveConfig: (patch) => ipcRenderer.invoke("save-config", patch),
   pickDir: () => ipcRenderer.invoke("pick-dir"),
+  switchDir: (dir) => ipcRenderer.invoke("switch-dir", dir),
   start: (opts) => ipcRenderer.invoke("start", opts),
   stop: () => ipcRenderer.invoke("stop"),
   runMode: (mode, opts) => ipcRenderer.invoke("run-mode", mode, opts),
