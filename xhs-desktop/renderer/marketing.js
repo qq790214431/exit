@@ -66,6 +66,10 @@ const MKT_STAGES = [
 window.MKT = window.MKT || {};
 window.MKT.stageButtons = {};
 window.MKT.registerStageButton = (stage, label, fn) => { window.MKT.stageButtons[stage] = window.MKT.stageButtons[stage] || []; window.MKT.stageButtons[stage].push({ label, fn }); };
+window.MKT.listActions = {};
+window.MKT.registerListAction = (label, fn) => { window.MKT.listActions[label] = fn; };
+window.MKT.gate = null;
+window.MKT.setGate = (fn) => { window.MKT.gate = fn; };
 window.MKT.projects = { projects: [] };
 window.MKT.current = null;
 window.MKT.stage = "deconstruct";
@@ -149,17 +153,24 @@ window.renderMktList = function renderMktList() {
       <div class="mkt-name">${esc(p.name)}</div>
       <div class="mkt-meta">${esc(p.client || "未填客户")} · ${esc(p.status || "进行中")} · 进度 ${mktProgress(p)}%</div>
       <div class="mkt-bar"><div class="mkt-fill" style="width:${mktProgress(p)}%"></div></div>
-      <div class="mkt-actions"><button class="mini mkt-open">打开</button><button class="mini mkt-del">删除</button></div>
+      <div class="mkt-actions"><button class="mini mkt-open">打开</button><button class="mini mkt-del">删除</button>${Object.entries(window.MKT.listActions).map(([k, v]) => `<button class="mini mkt-act" data-act="${esc(k)}">${esc(k)}</button>`).join("")}</div>
     </div>`).join("") || `<div class="marketing-note">还没有项目，点「＋ 新建项目」开始一个全案营销</div>`;
   document.querySelectorAll(".mkt-card").forEach(card => {
     card.querySelector(".mkt-open").onclick = () => { mktCurrent = card.dataset.id; mktStage = "deconstruct"; renderMktList(); renderMktWorkspace(); };
+    Object.entries(window.MKT.listActions).forEach(([k, v]) => {
+      card.querySelector(`.mkt-act[data-act="${CSS.escape(k)}"]`).onclick = async () => { const p = mktProjects.projects.find(x => x.id === card.dataset.id); if (p) await v(p); };
+    });
     card.querySelector(".mkt-del").onclick = async () => { if (!confirm("删除该项目？")) return; mktProjects = await window.api.deleteProject(card.dataset.id); if (mktCurrent === card.dataset.id) mktCurrent = null; renderMarketing(); };
   });
 }
 window.renderMktWorkspace = function renderMktWorkspace() {
   const p = mktProjects.projects.find(x => x.id === mktCurrent);
   if (!p) { $("mktWorkspace").innerHTML = ""; return; }
-  const stageNav = MKT_STAGES.map(s => `<button class="mkt-stage ${s.key === mktStage ? "active" : ""}" data-key="${s.key}">${s.title}</button>`).join("");
+  const stageNav = MKT_STAGES.map(s => {
+    const ph = (p.phases && p.phases[s.key]) || {};
+    const gate = window.MKT.gate ? window.MKT.gate(s, ph) : { ok: true };
+    return `<button class="mkt-stage ${s.key === mktStage ? "active" : ""}" data-key="${s.key}" title="${gate.hint || ""}">${s.title} ${gate.ok ? '<span class="gate-ok">✓</span>' : '<span class="gate-nd">·</span>'}</button>`;
+  }).join("");
   const st = MKT_STAGES.find(s => s.key === mktStage);
   const ph = (p.phases && p.phases[mktStage]) || {};
   const groups = st.groups.map(g => {
