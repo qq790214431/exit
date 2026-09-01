@@ -42,6 +42,10 @@ function esc(v) {
 
 function renderState(s) {
   $("dataDir").textContent = s.dataDir;
+  if (s.loginStatus) {
+    $("loginChip").textContent = s.loginStatus;
+    $("loginChip").classList.toggle("ok", s.loginStatus === "已登录");
+  }
   $("overallText").textContent = `${s.doneOk} / ${s.total}`;
   $("percent").textContent = s.total ? Math.round(s.doneOk / s.total * 100) + "%" : "-";
   $("overallBar").style.width = s.total ? (s.doneOk / s.total * 100) + "%" : "0%";
@@ -126,7 +130,7 @@ function currentRows() {
   rows = rows.map(r => ({ ...r, _score: computeScore(r, med[r.tier]) }));
   const { key, dir } = state.sort;
   rows = rows.slice().sort((a, b) => {
-    if (key === "followers_num") return ((a[key] ?? -1) - (b[key] ?? -1)) * dir;
+    if (key === "followers_num" || key === "avg_likes") return ((Number(a[key]) || -1) - (Number(b[key]) || -1)) * dir;
     if (key === "score") return ((a._score ?? 0) - (b._score ?? 0)) * dir;
     return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "zh") * dir;
   });
@@ -148,6 +152,7 @@ function applyFilters() {
   $("tbody").innerHTML = rows.map(r => {
     const st = r.status || "-";
     return `<tr data-uid="${esc(r.user_id)}" title="点击查看详情/趋势/备注" style="${r.blacklisted ? "opacity:.55" : ""}">
+      <td><input type="checkbox" class="row-check" data-uid="${esc(r.user_id)}" /></td>
       <td><b style="color:${r._score >= 80 ? "var(--green)" : r._score >= 60 ? "var(--cyan)" : "var(--dim)"}">${r._score || "-"}</b></td>
       <td>${r.blacklisted ? "🔒 " : ""}${esc(r.nickname)}</td>
       <td>${esc(r.red_id)}</td>
@@ -156,6 +161,7 @@ function applyFilters() {
       <td>${esc(r.followers_num)}</td>
       <td>${esc(r.likes_collects_num)}</td>
       <td>${esc(r.interaction_ratio)}${benchMark(r)}</td>
+      <td>${esc(r.avg_likes)}</td>
       <td>${esc(r.tier)}</td>
       <td>${esc(r.age)}</td>
       <td>${esc(r.constellation)}</td>
@@ -163,7 +169,7 @@ function applyFilters() {
       <td>${(r.user_tags || []).map(t => `<span class="chip" style="color:var(--purple);border-color:rgba(167,139,250,.4);padding:1px 7px;font-size:11px">${esc(t)}</span>`).join(" ")} ${esc(r.note)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="16" style="color:#6b84b0">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="17" style="color:#6b84b0">无匹配数据</td></tr>`;
   document.querySelectorAll("#tbody tr[data-uid]").forEach(tr => {
     tr.onclick = () => showTrend(tr.dataset.uid, tr.children[0].textContent);
   });
@@ -338,7 +344,7 @@ async function loadRanking() {
 $("rankRefresh").onclick = () => { loadRanking(); loadRankMap(); };
 
 // 数据看板
-let chartDashTrend = null, chartTierPie = null, chartDashRegion = null, chartRatioDist = null;
+let chartDashTrend = null, chartTierPie = null, chartDashRegion = null, chartRatioDist = null, chartNotesTrend = null;
 async function loadDashboard() {
   const okRows = state.rows.filter(r => r.status === "ok");
   const darkAxis = { axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" }, splitLine: { lineStyle: { color: "rgba(0,229,255,.06)" } } };
@@ -389,6 +395,17 @@ async function loadDashboard() {
     tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
   }, true);
   $("dashSummary").textContent = `粉丝总量趋势：快照覆盖 ${dash.trend.length} 天 · 当前粉丝总量 ${fmt(dash.trend.length ? dash.trend[dash.trend.length - 1].total : 0)} · 最近更新 ${dash.lastUpdate || "-"}`;
+
+  const nt = await window.api.getNotesTrend();
+  if (!chartNotesTrend) chartNotesTrend = echarts.init($("chartNotesTrend"));
+  chartNotesTrend.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 30, top: 20, bottom: 8, containLabel: true },
+    xAxis: { type: "category", data: nt.map(t => t.month), ...AXIS },
+    yAxis: { type: "value", ...AXIS },
+    series: [{ type: "bar", data: nt.map(t => t.avg_likes), barMaxWidth: 30, itemStyle: { color: "#00ff9d" } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,255,157,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
 }
 
 $("updateBtn").onclick = () => window.api.checkUpdate();
@@ -400,6 +417,48 @@ $("notesBtn").onclick = async () => {
   const s = await window.api.runNotes(okRows.map(r => r.user_id));
   renderState(s);
 };
+// 勾选与对比
+const selected = new Set();
+$("tbody").addEventListener("change", (e) => {
+  if (e.target.classList.contains("row-check")) {
+    const uid = e.target.dataset.uid;
+    e.target.checked ? selected.add(uid) : selected.delete(uid);
+  }
+});
+$("checkAll").addEventListener("change", (e) => {
+  document.querySelectorAll(".row-check").forEach(cb => cb.checked = e.target.checked);
+  selected.clear();
+  if (e.target.checked) document.querySelectorAll(".row-check").forEach(cb => selected.add(cb.dataset.uid));
+});
+let chartCompare = null;
+$("compareBtn").onclick = async () => {
+  const sel = [...selected];
+  if (sel.length < 1 || sel.length > 4) { appendLog(`\n[对比] 请勾选 1-4 个账号（当前 ${sel.length} 个）\n`); return; }
+  const rows = sel.map(uid => state.rows.find(r => r.user_id === uid)).filter(Boolean);
+  const head = `<tr><th>指标</th>${rows.map(r => `<th>${esc(r.nickname)}</th>`).join("")}</tr>`;
+  const body = ["score", "followers_num", "interaction_ratio", "avg_likes", "avg_comments", "tier", "region"]
+    .map(k => `<tr><td>${k}</td>${rows.map(r => `<td>${esc(r[k])}</td>`).join("")}</tr>`).join("");
+  $("compareTable").innerHTML = head + body;
+  if (!chartCompare) chartCompare = echarts.init($("chartCompare"));
+  chartCompare.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 20, top: 30, bottom: 8, containLabel: true },
+    xAxis: { type: "category", data: ["评分", "粉丝(万)", "互动率", "均赞/篇"] },
+    yAxis: { type: "value", ...AXIS },
+    legend: { top: 0, textStyle: { color: "#7fb4d4" } },
+    series: rows.map((r, i) => ({
+      name: r.nickname, type: "bar", barMaxWidth: 24,
+      data: [r._score || 0, ((r.followers_num || 0) / 10000), parseFloat(r.interaction_ratio) || 0, parseFloat(r.avg_likes) || 0],
+      itemStyle: { color: ["#00e5ff", "#ff2d95", "#00ff9d", "#ffb020", "#a78bfa"][i % 5] }
+    })),
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+  $("compareMask").classList.remove("hidden");
+};
+$("compareClose").onclick = () => $("compareMask").classList.add("hidden");
+$("compareMask").onclick = (e) => { if (e.target === $("compareMask")) $("compareMask").classList.add("hidden"); };
+$("checkBtn").onclick = async () => { appendLog("\n[巡检] 数据健康检查中...\n"); await window.api.runCheck(); };
+
 $("dashExportBtn").onclick = async () => {
   appendLog("\n[看板导出] 截图导出中...\n");
   const s = await window.api.exportDashboard();
@@ -573,7 +632,7 @@ document.querySelectorAll("th[data-key]").forEach(th => {
   };
 });
 
-window.addEventListener("resize", () => { [chartRegion, chartFans, chartRank, chartTrend, chartDashTrend, chartTierPie, chartDashRegion, chartRatioDist].forEach(c => c && c.resize()); });
+window.addEventListener("resize", () => { [chartRegion, chartFans, chartRank, chartTrend, chartDashTrend, chartTierPie, chartDashRegion, chartRatioDist, chartNotesTrend, chartCompare].forEach(c => c && c.resize()); });
 
 window.api.getState().then(renderState);
 loadRankMap();

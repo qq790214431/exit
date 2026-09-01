@@ -40,6 +40,10 @@ header, section, main { position: relative; z-index: 1; }
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   text-shadow: 0 0 18px rgba(0,229,255,.35); }
 .logo .ver { font-size: 11px; color: var(--dim); -webkit-text-fill-color: var(--dim); margin-left: 6px; font-weight: 400; }
+.login-chip { font-family: var(--mono); font-size: 12px; padding: 4px 12px; border-radius: 14px; border: 1px solid rgba(255,176,32,.45); color: var(--amber); background: rgba(255,176,32,.08); }
+.login-chip.ok { border-color: rgba(0,255,157,.45); color: var(--green); background: rgba(0,255,157,.08); }
+.compare-wrap table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.compare-wrap td, .compare-wrap th { padding: 8px 10px; border-bottom: 1px solid rgba(0,229,255,.1); }
 .status {
   font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
   padding: 4px 14px; border-radius: 14px;

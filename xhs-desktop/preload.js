@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("api", {
   exportDashboard: () => ipcRenderer.invoke("export-dashboard"),
   runLogin: () => ipcRenderer.invoke("run-login"),
   runNotes: (uids) => ipcRenderer.invoke("run-notes", uids),
+  getNotesTrend: () => ipcRenderer.invoke("get-notes-trend"),
+  runCheck: () => ipcRenderer.invoke("run-check"),
   exportProfiles: () => ipcRenderer.invoke("export-profiles"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),
   getNotes: () => ipcRenderer.invoke("get-notes"),

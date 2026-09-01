@@ -11,6 +11,7 @@
 <header class="tech-header">
   <div class="logo">◈ 小红书主页链接采集系统 <span class="ver">v2.0</span></div>
   <div class="status" id="status">STANDBY</div>
+  <div class="login-chip" id="loginChip" title="小红书登录状态（采集笔记需登录）">未登录</div>
 </header>
 
 <section class="stats-row">
@@ -65,6 +66,8 @@
   <button id="profileBtn" title="导出达人运营档案（备注/标签/黑名单）">导出档案</button>
   <button id="loginBtn" title="扫码登录小红书（采集笔记前需登录一次）">登录</button>
   <button id="notesBtn" title="采集当前筛选账号的笔记（赞/评/藏）">采集笔记</button>
+  <button id="compareBtn" title="对比勾选的 2-3 个达人">对比</button>
+  <button id="checkBtn" title="数据健康巡检">巡检</button>
   <button id="updateBtn" title="检查新版本">检查更新</button>
   <button id="captchaListBtn" title="查看验证码记录与截图">验证码记录</button>
 </section>
@@ -124,6 +127,10 @@
     <div class="chart-box"><div class="chart-title">◤ 地区 TOP10</div><div id="chartDashRegion" class="chart" style="height:220px"></div></div>
     <div class="chart-box"><div class="chart-title">◤ 互动率分布</div><div id="chartRatioDist" class="chart" style="height:220px"></div></div>
   </div>
+  <div class="dash-row">
+    <div class="chart-box"><div class="chart-title">◤ 笔记互动趋势（按月均赞）</div><div id="chartNotesTrend" class="chart" style="height:220px"></div></div>
+    <div class="chart-box"><div class="chart-title">◤ 说明</div><div style="padding:16px;color:#6b84b0;font-size:12px;line-height:1.8">笔记趋势基于 notes_data.jsonl（需先登录并采集笔记）。<br/>均赞/篇 = 真实内容互动指标，优于"获赞收藏/粉丝"代理。</div></div>
+  </div>
   <div class="dash-summary" id="dashSummary"></div>
   <div class="dash-actions"><button id="dashExportBtn">导出看板图片</button></div>
 </section>
@@ -152,6 +159,7 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="checkAll" title="全选" /></th>
         <th data-key="score">评分 ⇅</th>
         <th data-key="nickname">昵称 ⇅</th>
         <th data-key="red_id">小红书号 ⇅</th>
@@ -160,6 +168,7 @@
         <th data-key="followers_num">粉丝(数值) ⇅</th>
         <th data-key="likes_collects_num">获赞收藏 ⇅</th>
         <th data-key="interaction_ratio">互动率 ⇅</th>
+        <th data-key="avg_likes">均赞/篇 ⇅</th>
         <th data-key="tier">分群 ⇅</th>
         <th data-key="age">年龄 ⇅</th>
         <th data-key="constellation">星座 ⇅</th>
@@ -182,6 +191,17 @@
     <div id="captchaList" class="captcha-list"></div>
     <div class="captcha-preview"><img id="captchaImg" alt="" /></div>
     <div class="modal-actions"><button id="captchaClose">关闭</button></div>
+  </div>
+</div>
+
+<div id="compareMask" class="modal-mask hidden">
+  <div class="modal modal-wide">
+    <div class="modal-title">◇ 达人对比</div>
+    <div class="compare-wrap">
+      <table id="compareTable"></table>
+      <div id="chartCompare" class="chart" style="height:260px"></div>
+    </div>
+    <div class="modal-actions"><button id="compareClose">关闭</button></div>
   </div>
 </div>
 
