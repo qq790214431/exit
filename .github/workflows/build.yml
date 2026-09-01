@@ -35,11 +35,14 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npx electron-builder --mac
-      - name: 上传 DMG
+      - name: 上传 mac 产物（含自动更新元数据）
         uses: actions/upload-artifact@v4
         with:
-          name: mac-dmg
-          path: xhs-desktop/release/*.dmg
+          name: mac-artifacts
+          path: |
+            xhs-desktop/release/*.dmg
+            xhs-desktop/release/*mac*.zip
+            xhs-desktop/release/latest-mac.yml
 
   release:
     needs: [build-mac, build-win]
@@ -72,10 +75,11 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npx electron-builder --win --x64
-      - name: 上传安装包
+      - name: 上传 win 产物（含自动更新元数据）
         uses: actions/upload-artifact@v4
         with:
           name: win-installer
           path: |
             xhs-desktop/release/*.exe
             xhs-desktop/release/*win*.zip
+            xhs-desktop/release/latest.yml

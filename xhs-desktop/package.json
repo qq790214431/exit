@@ -1,6 +1,6 @@
 {
   "name": "xhs-desktop",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "小红书主页链接采集工具（桌面版）",
   "main": "main.js",
   "author": "xhs-desktop",
@@ -54,10 +54,18 @@
         "zip"
       ],
       "icon": "build/icon.png"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "qq790214431",
+        "repo": "exit"
+      }
+    ]
   },
   "dependencies": {
     "echarts": "^6.1.0",
+    "electron-updater": "^6.8.9",
     "xlsx": "^0.18.5"
   }
 }
