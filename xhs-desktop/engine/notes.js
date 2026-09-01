@@ -25,6 +25,8 @@ const DATA_DIR = process.env.DATA_DIR || __dirname;
 const URLMAP = path.join(DATA_DIR, "urlmap.json");
 const COOKIES = process.env.COOKIES || path.join(DATA_DIR, "cookies.json");
 const NOTES_MAX = Number(process.env.NOTES_MAX || 20);
+const NOTE_DETAIL = process.env.NOTE_DETAIL === "1";
+const NOTE_DETAIL_MAX = Number(process.env.NOTE_DETAIL_MAX || 5);
 const OUT = path.join(DATA_DIR, "notes_data.jsonl");
 const SUMMARY = path.join(DATA_DIR, "notes_summary.csv");
 
@@ -37,6 +39,23 @@ function findChrome() {
   ].filter(Boolean);
   for (const c of candidates) { try { if (c && fs.existsSync(c)) return c; } catch (e) {} }
   return process.env.CHROME || "";
+}
+
+async function fetchNoteDetail(page, noteId) {
+  try {
+    const d = await page.evaluate(async ({ noteId }) => {
+      const p = "/api/sns/web/v1/feed?source=note_explore&api_version=2&note_id=" + noteId;
+      const headers = { "accept": "application/json", "referer": location.href, "content-type": "application/json" };
+      const s = window._webmsxyw ? window._webmsxyw(p) : null;
+      if (s && s["X-s"]) { headers["X-s"] = s["X-s"]; headers["X-t"] = s["X-t"]; }
+      const r = await fetch("https://edith.xiaohongshu.com" + p, { headers, method: "GET" });
+      const j = await r.json();
+      const n = j?.data?.items?.[0] || j?.data?.note;
+      if (!n) return {};
+      return { desc: (n.desc || "").slice(0, 2000), title: n.title || "", time: n.time || "" };
+    }, { noteId });
+    return d || {};
+  } catch (e) { return {}; }
 }
 
 async function fetchNotes(page, uid, url) {
@@ -59,7 +78,7 @@ async function fetchNotes(page, uid, url) {
     }, { uid, cursor });
     if (res.status !== 200 || !res.data || !res.data.items) break;
     for (const it of res.data.items) {
-      all.push({
+      const base = {
         user_id: uid,
         note_id: it.id || it.note_id || "",
         title: (it.display_title || it.title || "").slice(0, 120),
@@ -68,10 +87,21 @@ async function fetchNotes(page, uid, url) {
         comments: it.interact_info?.comment_count ?? null,
         note_ts: it.time || "",
         ts: new Date().toISOString()
-      });
+      };
+      all.push(base);
     }
     cursor = res.data.cursor || "";
     if (all.length >= NOTES_MAX || !cursor || !res.data.has_more) break;
+  }
+  if (NOTE_DETAIL && all.length) {
+    const targets = all.slice(0, NOTE_DETAIL_MAX);
+    for (const n of targets) {
+      const d = await fetchNoteDetail(page, n.note_id);
+      n.desc = d.desc || "";
+      n.title = n.title || d.title || "";
+      n.note_ts = n.note_ts || d.time || "";
+      await page.waitForTimeout(1200);
+    }
   }
   return all;
 }

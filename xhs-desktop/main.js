@@ -117,6 +117,24 @@ function readState(dir) {
   const rows = [];
   let fansTotal = 0, fansCount = 0, fans10k = 0;
   const notes = loadNotes();
+  const notesSummary = {};
+  const notesCsv = path.join(dir, "notes_summary.csv");
+  if (fs.existsSync(notesCsv)) {
+    const lines = fs.readFileSync(notesCsv, "utf8").split("\n").filter(l => l.trim());
+    const head = lines[0].split(",").map(h => h.trim());
+    for (const line of lines.slice(1)) {
+      const cells = line.split(",");
+      const row = {};
+      head.forEach((h, i) => row[h] = cells[i]);
+      if (row.user_id) notesSummary[row.user_id] = row;
+    }
+  }
+  const cookiesFile = path.join(dir, "cookies.json");
+  let loginStatus = "未登录";
+  try {
+    const ck = JSON.parse(fs.readFileSync(cookiesFile, "utf8"));
+    loginStatus = ck.some(c => c.name === "web_session" && c.value && c.value.length > 20) ? "已登录" : "未登录";
+  } catch (e) {}
   for (const id of Object.keys(latest).sort()) {
     const j = latest[id];
     statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
@@ -144,7 +162,10 @@ function readState(dir) {
       ts: j.ts || "",
       note: notes[id]?.note || "",
       user_tags: notes[id]?.tags || [],
-      blacklisted: !!(notes[id]?.blacklisted)
+      blacklisted: !!(notes[id]?.blacklisted),
+      avg_likes: notesSummary[id]?.avg_likes || "",
+      avg_comments: notesSummary[id]?.avg_comments || "",
+      notes_count: notesSummary[id]?.notes || ""
     });
   }
   const doneOk = statusCounts.ok || 0;
@@ -166,6 +187,7 @@ function readState(dir) {
     hasCsv: fs.existsSync(csvFile),
     csvRows: fs.existsSync(csvFile) ? fs.readFileSync(csvFile, "utf8").split("\n").filter(l => l.trim()).length - 1 : 0,
     hasGrowth: fs.existsSync(growthFile),
+    loginStatus,
     rows
   };
 }
@@ -438,6 +460,26 @@ async function runEngineScript(name, extraEnv, label) {
   await new Promise(res => c.on("exit", res));
   return readState(dataDir);
 }
+ipcMain.handle("get-notes-trend", () => {
+  const ndFile = path.join(dataDir, "notes_data.jsonl");
+  const byMonth = {};
+  if (fs.existsSync(ndFile)) {
+    for (const line of fs.readFileSync(ndFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        const m = (j.note_ts || "").slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(m)) continue;
+        byMonth[m] = byMonth[m] || { likes: 0, comments: 0, notes: 0 };
+        byMonth[m].likes += j.likes || 0;
+        byMonth[m].comments += j.comments || 0;
+        byMonth[m].notes++;
+      } catch (e) {}
+    }
+  }
+  return Object.keys(byMonth).sort().map(m => ({ month: m, ...byMonth[m], avg_likes: Math.round(byMonth[m].likes / byMonth[m].notes) }));
+});
+ipcMain.handle("run-check", () => runEngineScript("check.js", {}, "数据巡检"));
 ipcMain.handle("run-login", () => runEngineScript("login.js", {}, "登录"));
 ipcMain.handle("run-notes", (e, uids) => runEngineScript("notes.js", { UIDS: (uids || []).join(","), NOTES_MAX: "10" }, "笔记采集"));
 ipcMain.handle("check-update", () => {
