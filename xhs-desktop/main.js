@@ -50,7 +50,7 @@ function ensureDataDirFiles() {
     for (const f of ["scrape.js", "lib.js"]) {
       const dst = path.join(dataDir, f);
       if (fs.existsSync(dst)) continue;
-      const src = fs.existsSync(path.join(__dirname, f)) ? path.join(__dirname, f) : path.join(__dirname, "..", "xhs采集", f);
+      const src = engineScript(f);
       if (fs.existsSync(src)) { fs.copyFileSync(src, dst); win.webContents.send("log", `已初始化数据目录文件: ${f}\n`); }
     }
   } catch (e) { win.webContents.send("log", `初始化数据目录失败: ${e.message}\n`); }
@@ -59,6 +59,14 @@ function ensureDataDirFiles() {
 // ---------- 内置运行时（Windows 打包用） ----------
 function runtimeRoot() {
   return process.resourcesPath || __dirname;
+}
+// 采集引擎脚本：打包后位于 resources/runtime/scripts（真实文件，可被 node 子进程执行）；开发时回退到仓库
+function engineScript(name) {
+  const ext = path.join(runtimeRoot(), "runtime", "scripts", name);
+  if (fs.existsSync(ext)) return ext;
+  const devLocal = path.join(__dirname, "..", "xhs采集", name);
+  if (fs.existsSync(devLocal)) return devLocal;
+  return path.join(__dirname, name);
 }
 function nodeBin() {
   const exe = process.platform === "win32" ? "node.exe" : "node";
@@ -280,12 +288,19 @@ ipcMain.handle("export-xlsx", () => {
   win.webContents.send("log", `已导出 Excel: ${out}（${rows.length} 行）\n`);
   return readState(dataDir);
 });
+ipcMain.handle("pick-links-file", async () => {
+  const r = await dialog.showOpenDialog(win, {
+    properties: ["openFile"],
+    filters: [{ name: "文本", extensions: ["txt", "md", "log"] }, { name: "所有文件", extensions: ["*"] }],
+    defaultPath: dataDir
+  });
+  if (r.canceled || !r.filePaths[0]) return null;
+  try { return fs.readFileSync(r.filePaths[0], "utf8"); } catch (e) { return null; }
+});
 ipcMain.handle("import-links", async (e, text) => {
   const linksFile = path.join(dataDir, "links.txt");
   fs.writeFileSync(linksFile, text || "");
-  const script = fs.existsSync(path.join(__dirname, "import_links.js"))
-    ? path.join(__dirname, "import_links.js")
-    : path.join(__dirname, "..", "xhs采集", "import_links.js");
+  const script = engineScript("import_links.js");
   const c = spawn(nodeBin(), [script], {
     cwd: dataDir,
     env: runtimeEnv({ LINKS_FILE: linksFile, INPUT_JSON: path.join(dataDir, "urlmap.json"), URLMAP_OUT: path.join(dataDir, "urlmap.json") })
@@ -376,7 +391,7 @@ ipcMain.handle("backup", () => {
   });
 });
 async function runReport() {
-  const script = fs.existsSync(path.join(__dirname, "report.js")) ? path.join(__dirname, "report.js") : path.join(__dirname, "..", "xhs采集", "report.js");
+  const script = engineScript("report.js");
   win.webContents.send("log", "\n[周报] 生成中...\n");
   const c = spawn(nodeBin(), [script], { env: runtimeEnv({ DATA_DIR: dataDir }) });
   c.stdout.on("data", d => win.webContents.send("log", d.toString()));

@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("api", {
   exportCsv: () => ipcRenderer.invoke("export-csv"),
   exportXlsx: () => ipcRenderer.invoke("export-xlsx"),
   importLinks: (text) => ipcRenderer.invoke("import-links", text),
+  pickLinksFile: () => ipcRenderer.invoke("pick-links-file"),
   openDir: () => ipcRenderer.invoke("open-dir"),
   openScreenshots: () => ipcRenderer.invoke("open-screenshots"),
   runReport: () => ipcRenderer.invoke("run-report"),

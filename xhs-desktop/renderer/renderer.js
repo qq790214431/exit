@@ -465,6 +465,12 @@ $("trendMask").onclick = (e) => { if (e.target === $("trendMask")) $("trendMask"
 const modalMask = $("modalMask");
 $("importBtn").onclick = () => { $("importResult").textContent = ""; $("linksText").value = ""; modalMask.classList.remove("hidden"); };
 $("modalCancel").onclick = () => modalMask.classList.add("hidden");
+$("modalPickFile").onclick = async () => {
+  const text = await window.api.pickLinksFile();
+  if (text == null) return;
+  $("linksText").value = text;
+  $("importResult").textContent = `已读取文件（${text.length} 字符），点击"导入并生成清单"`;
+};
 $("modalOk").onclick = async () => {
   const text = $("linksText").value.trim();
   if (!text) { $("importResult").textContent = "请先粘贴链接"; return; }

@@ -1,6 +1,6 @@
 {
   "name": "xhs-desktop",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "小红书主页链接采集工具（桌面版）",
   "main": "main.js",
   "author": "xhs-desktop",
@@ -20,11 +20,7 @@
       "main.js",
       "preload.js",
       "renderer/**/*",
-      "lib.js",
-      "import_links.js",
-      "report.js",
-      "package.json",
-      "scrape.js"
+      "package.json"
     ],
     "directories": {
       "output": "release"
@@ -46,6 +42,10 @@
       {
         "from": "runtime/node_modules/playwright-core",
         "to": "runtime/node_modules/playwright-core"
+      },
+      {
+        "from": "engine",
+        "to": "runtime/scripts"
       }
     ],
     "win": {
