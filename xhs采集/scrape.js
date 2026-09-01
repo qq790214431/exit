@@ -1,14 +1,37 @@
 const fs = require("fs");
 const { parseTags, computeTier, interactionRatio } = require("./lib.js");
 let playwright;
+const corePath = process.env.PLAYWRIGHT_CORE_PATH;
 try {
-  playwright = require("playwright-core");
+  playwright = corePath ? require(corePath) : require("playwright-core");
 } catch (e) {
-  playwright = require("/Users/Admin/.homebrew/npm-cache/_npx/31e32ef8478fbf80/node_modules/playwright-core");
+  try {
+    playwright = require("/Users/Admin/.homebrew/npm-cache/_npx/31e32ef8478fbf80/node_modules/playwright-core");
+  } catch (e2) {
+    console.error("找不到 playwright-core：请 npm i playwright-core，或设置 PLAYWRIGHT_CORE_PATH");
+    process.exit(1);
+  }
 }
 const { chromium } = playwright;
 
-const CHROME = process.env.CHROME || "/Users/Admin/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+function findChrome() {
+  const candidates = [
+    process.env.CHROME,
+    "/Users/Admin/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    process.env.LOCALAPPDATA ? process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe" : null,
+    process.env.PROGRAMFILES ? process.env.PROGRAMFILES + "\\Google\\Chrome\\Application\\chrome.exe" : null,
+    process.env.PROGRAMFILES ? process.env.PROGRAMFILES + "\\Microsoft\\Edge\\Application\\msedge.exe" : null
+  ].filter(Boolean);
+  for (const c of candidates) {
+    try { if (c && fs.existsSync(c)) return c; } catch (e) {}
+  }
+  return process.env.CHROME || "";
+}
+const CHROME = findChrome();
 const OUT_DIR = __dirname;
 const PROGRESS = OUT_DIR + "/progress.jsonl";
 const CSV_PATH = OUT_DIR + "/xhs_profiles.csv";

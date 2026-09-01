@@ -44,6 +44,34 @@ function saveConfig(patch) {
   try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2)); } catch (e) {}
 }
 
+// ---------- 数据目录自动初始化（内置采集脚本） ----------
+function ensureDataDirFiles() {
+  try {
+    for (const f of ["scrape.js", "lib.js"]) {
+      const dst = path.join(dataDir, f);
+      if (fs.existsSync(dst)) continue;
+      const src = fs.existsSync(path.join(__dirname, f)) ? path.join(__dirname, f) : path.join(__dirname, "..", "xhs采集", f);
+      if (fs.existsSync(src)) { fs.copyFileSync(src, dst); win.webContents.send("log", `已初始化数据目录文件: ${f}\n`); }
+    }
+  } catch (e) { win.webContents.send("log", `初始化数据目录失败: ${e.message}\n`); }
+}
+
+// ---------- 内置运行时（Windows 打包用） ----------
+function runtimeRoot() {
+  return process.resourcesPath || __dirname;
+}
+function nodeBin() {
+  const exe = process.platform === "win32" ? "node.exe" : "node";
+  const bundled = path.join(runtimeRoot(), "runtime", "node", exe);
+  return fs.existsSync(bundled) ? bundled : "node";
+}
+function runtimeEnv(extra) {
+  const env = { ...process.env, ...(extra || {}) };
+  const core = path.join(runtimeRoot(), "runtime", "node_modules", "playwright-core");
+  if (fs.existsSync(core)) env.PLAYWRIGHT_CORE_PATH = core;
+  return env;
+}
+
 // ---------- 备注/黑名单 ----------
 function notesPath() { return path.join(dataDir, "notes.json"); }
 function loadNotes() {
@@ -130,7 +158,7 @@ function readState(dir) {
 function spawnOnce(env, label) {
   return new Promise(resolve => {
     const script = path.join(dataDir, "scrape.js");
-    const c = spawn("node", [script], { cwd: dataDir, env });
+    const c = spawn(nodeBin(), [script], { cwd: dataDir, env: runtimeEnv(env) });
     c.stdout.on("data", d => win.webContents.send("log", d.toString()));
     c.stderr.on("data", d => win.webContents.send("log", d.toString()));
     c.on("error", err => win.webContents.send("log", `启动失败: ${err.message}\n`));
@@ -148,7 +176,7 @@ function runRound(opts) {
   if (opts.max) env.MAX = String(opts.max);
   if (opts.concurrency) env.CONCURRENCY = String(opts.concurrency);
   if (opts.captchaBurst) env.CAPTCHA_BURST = String(opts.captchaBurst);
-  child = spawn("node", [script], { cwd: dataDir, env });
+  child = spawn(nodeBin(), [script], { cwd: dataDir, env: runtimeEnv(env) });
   child.stdout.on("data", d => {
     const text = d.toString();
     win.webContents.send("log", text);
@@ -194,12 +222,14 @@ ipcMain.handle("pick-dir", async () => {
   if (!r.canceled && r.filePaths[0]) {
     dataDir = r.filePaths[0];
     saveConfig({ dataDir });
+    ensureDataDirFiles();
     return readState(dataDir);
   }
   return null;
 });
 ipcMain.handle("start", (e, opts) => {
   stopped = false;
+  ensureDataDirFiles();
   saveConfig({ dataDir, concurrency: opts.concurrency, max: opts.max, captchaBurst: opts.captchaBurst, cooldown: opts.cooldown });
   runRound(opts || {});
   return true;
@@ -212,6 +242,7 @@ ipcMain.handle("stop", () => {
 });
 // 模式运行：refill 补全缺失 / refresh 刷新粉丝 / compact 压缩进度 / retry 重试失败 / resrcape 全量重采
 ipcMain.handle("run-mode", async (e, mode, opts) => {
+  ensureDataDirFiles();
   const env = { ...process.env };
   if (opts && opts.concurrency) env.CONCURRENCY = String(opts.concurrency);
   if (opts && opts.max) env.MAX = String(opts.max);
@@ -247,9 +278,9 @@ ipcMain.handle("import-links", async (e, text) => {
   const script = fs.existsSync(path.join(__dirname, "import_links.js"))
     ? path.join(__dirname, "import_links.js")
     : path.join(__dirname, "..", "xhs采集", "import_links.js");
-  const c = spawn("node", [script], {
+  const c = spawn(nodeBin(), [script], {
     cwd: dataDir,
-    env: { ...process.env, LINKS_FILE: linksFile, INPUT_JSON: path.join(dataDir, "urlmap.json"), URLMAP_OUT: path.join(dataDir, "urlmap.json") }
+    env: runtimeEnv({ LINKS_FILE: linksFile, INPUT_JSON: path.join(dataDir, "urlmap.json"), URLMAP_OUT: path.join(dataDir, "urlmap.json") })
   });
   let out = "";
   c.stdout.on("data", d => { out += d.toString(); win.webContents.send("log", d.toString()); });
@@ -309,7 +340,7 @@ ipcMain.handle("backup", () => {
 async function runReport() {
   const script = fs.existsSync(path.join(__dirname, "report.js")) ? path.join(__dirname, "report.js") : path.join(__dirname, "..", "xhs采集", "report.js");
   win.webContents.send("log", "\n[周报] 生成中...\n");
-  const c = spawn("node", [script], { env: { ...process.env, DATA_DIR: dataDir } });
+  const c = spawn(nodeBin(), [script], { env: runtimeEnv({ DATA_DIR: dataDir }) });
   c.stdout.on("data", d => win.webContents.send("log", d.toString()));
   c.stderr.on("data", d => win.webContents.send("log", d.toString()));
   await new Promise(res => c.on("exit", res));
@@ -514,6 +545,7 @@ function checkSchedule() {
 app.whenReady().then(() => {
   loadConfig();
   createWindow();
+  ensureDataDirFiles();
   setInterval(() => { checkSchedule(); checkReportSchedule(); }, 30000);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
