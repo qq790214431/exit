@@ -67,6 +67,9 @@ window.MKT = window.MKT || {};
 #ganttMask .gnt-bar.c-doing{background:linear-gradient(90deg,#ffb648,#ff8c3a)}
 #ganttMask .gnt-flag{position:absolute;top:4px;left:0;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid #ff2d95;transform:translateX(-50%);filter:drop-shadow(0 0 6px rgba(255,45,149,.8))}
 #ganttMask .gnt-pending{font-size:12px;color:#ffb648;margin-top:12px;line-height:1.7}
+#ganttMask .gnt-bar.gnt-draggable{cursor:grab}
+#ganttMask .gnt-bar.gnt-dragging{opacity:.45;cursor:grabbing}
+#ganttMask .gnt-track.drag-over{outline:2px dashed rgba(0,229,255,.65);outline-offset:-2px;background:rgba(0,229,255,.08)}
 `;
 
   /* ---------- 甘特排期渲染 ---------- */
@@ -176,8 +179,9 @@ window.MKT = window.MKT || {};
       }
       const cls = /已发布|已完成|发布/.test(it.status) ? "c-done"
         : (/进行中|执行/.test(it.status) ? "c-doing" : "c-content");
+      const draggable = /排期|进行/.test(it.status);
       const w = Math.max(pct(it.end) - pct(it.pos), 1);
-      return `<div class="gnt-bar ${cls}" style="left:${pct(it.pos)}%;width:${w}%" title="${tip}"></div>`;
+      return `<div class="gnt-bar ${cls}${draggable ? " gnt-draggable" : ""}" style="left:${pct(it.pos)}%;width:${w}%" title="${tip}"${draggable ? ` draggable="true" data-idx="${it.i}"` : ""}></div>`;
     }
 
     function labelHTML(it) {
@@ -242,6 +246,79 @@ window.MKT = window.MKT || {};
       </div>`;
     document.body.appendChild(mask);
     ganttOpen = true;
+
+    /* ---------- B1：拖拽调期（内容条 → 时间轴 drop） ---------- */
+    let dragIdx = null;
+    function clearDragUI() {
+      mask.querySelectorAll(".gnt-bar.gnt-dragging").forEach(el => el.classList.remove("gnt-dragging"));
+      mask.querySelectorAll(".gnt-track.drag-over").forEach(el => el.classList.remove("drag-over"));
+    }
+    mask.querySelectorAll(".gnt-bar.gnt-draggable").forEach(el => {
+      el.addEventListener("dragstart", (e) => {
+        dragIdx = +el.dataset.idx;
+        if (e.dataTransfer) {
+          try { e.dataTransfer.setData("text/plain", String(dragIdx)); } catch (_) {}
+          e.dataTransfer.effectAllowed = "move";
+        }
+        el.classList.add("gnt-dragging");
+      });
+      el.addEventListener("dragend", () => { clearDragUI(); dragIdx = null; });
+    });
+    // 时间轴容器 = 每条 .gnt-track（含顶部时间轴行）；时间轴外无 drop 处理器 → 不生效
+    mask.querySelectorAll(".gnt-track").forEach(track => {
+      track.addEventListener("dragover", (e) => {
+        if (dragIdx == null) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        track.classList.add("drag-over");
+      });
+      track.addEventListener("dragleave", () => track.classList.remove("drag-over"));
+      track.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        track.classList.remove("drag-over");
+        clearDragUI();
+        if (dragIdx == null) return;
+        const idx = dragIdx;
+        dragIdx = null;
+        const row = calendar[idx];
+        const src = items.find(x => x.kind === "content" && x.i === idx);
+        if (!row || !src) return;
+
+        // 落点 x 相对时间轴宽度的比例 → 移动量（deltaX 相对该条原位置）
+        const rect = track.getBoundingClientRect();
+        const width = rect.width || 1;
+        const dropX = e.clientX - rect.left;
+        const oldX = ((src.pos - min) / span) * width;
+        const move = Math.round((dropX - oldX) / width * span);
+
+        if (hasDate) {
+          // 天模式：新日期 = 旧日期 + round(deltaX / 宽度 * 总天数)
+          const newNum = (src.date != null ? src.date : src.pos) + move;
+          const d = new Date(newNum * 86400000);
+          const pad2 = n => String(n).padStart(2, "0");
+          const newVal = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+          if (String(row[5] || "").trim() === newVal) return;   // 未变化不保存
+          row[5] = newVal;
+        } else {
+          // 周模式：周次 ± 移动周数
+          const newWeek = Math.max(1, (src.week != null ? src.week : src.pos) + move);
+          const newVal = "第" + newWeek + "周";
+          if (String(row[0] || "").trim() === newVal) return;
+          row[0] = newVal;
+        }
+
+        // 定位当前项目对象（与 window.MKT.current 对齐），保存并同步全局
+        const list = (window.MKT.projects && window.MKT.projects.projects) || [];
+        const cur = list.find(x => x && String(x.id) === String(window.MKT.current)) || project;
+        try {
+          const res = await window.api.saveProject(cur);
+          if (res && Array.isArray(res.projects)) window.MKT.projects = res;
+        } catch (err) {
+          console.error("[甘特排期] 保存失败", err);
+        }
+        window.MKT.renderGantt(cur);
+      });
+    });
 
     document.getElementById("gntClose").onclick = gntClose;
     mask.addEventListener("click", e => { if (e.target === mask) gntClose(); });
