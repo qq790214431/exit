@@ -392,6 +392,14 @@ async function loadDashboard() {
 }
 
 $("updateBtn").onclick = () => window.api.checkUpdate();
+$("loginBtn").onclick = async () => { appendLog("\n[登录] 请在弹出的浏览器窗口扫码登录，完成后自动保存...\n"); await window.api.runLogin(); };
+$("notesBtn").onclick = async () => {
+  const okRows = currentRows().filter(r => r.status === "ok").slice(0, 10);
+  if (!okRows.length) { appendLog("\n[笔记采集] 当前筛选无成功账号\n"); return; }
+  appendLog(`\n[笔记采集] 对 ${okRows.length} 个账号采集笔记（每账号前 10 篇）...\n`);
+  const s = await window.api.runNotes(okRows.map(r => r.user_id));
+  renderState(s);
+};
 $("dashExportBtn").onclick = async () => {
   appendLog("\n[看板导出] 截图导出中...\n");
   const s = await window.api.exportDashboard();

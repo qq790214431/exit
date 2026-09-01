@@ -428,6 +428,18 @@ ipcMain.handle("read-image", (e, file) => {
   return "data:image/png;base64," + fs.readFileSync(p).toString("base64");
 });
 ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
+async function runEngineScript(name, extraEnv, label) {
+  const script = engineScript(name);
+  if (!fs.existsSync(script)) { win.webContents.send("log", `找不到 ${name}\n`); return; }
+  win.webContents.send("log", `\n[${label}] 启动...\n`);
+  const c = spawn(nodeBin(), [script], { env: runtimeEnv({ DATA_DIR: dataDir, ...(extraEnv || {}) }) });
+  c.stdout.on("data", d => win.webContents.send("log", d.toString()));
+  c.stderr.on("data", d => win.webContents.send("log", d.toString()));
+  await new Promise(res => c.on("exit", res));
+  return readState(dataDir);
+}
+ipcMain.handle("run-login", () => runEngineScript("login.js", {}, "登录"));
+ipcMain.handle("run-notes", (e, uids) => runEngineScript("notes.js", { UIDS: (uids || []).join(","), NOTES_MAX: "10" }, "笔记采集"));
 ipcMain.handle("check-update", () => {
   try { autoUpdater.checkForUpdates(); return true; } catch (e) { win.webContents.send("log", `[更新] 无法检查: ${e.message}\n`); return false; }
 });
