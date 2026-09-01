@@ -35,6 +35,7 @@
     "npmRebuild": false
   },
   "dependencies": {
-    "echarts": "^6.1.0"
+    "echarts": "^6.1.0",
+    "xlsx": "^0.18.5"
   }
 }
