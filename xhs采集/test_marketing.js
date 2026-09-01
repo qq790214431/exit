@@ -24,7 +24,7 @@ global.esc = (v) => String(v ?? "");
 global.fmt = (n) => String(n);
 
 const DIR = path.join(__dirname, "..", "xhs-desktop", "renderer");
-const mods = ["mkt-exec.js", "mkt-plan.js", "mkt-ux.js", "mkt-auto.js", "mkt-dash.js", "mkt-pdf.js", "mkt-kanban.js", "mkt-kpi.js", "mkt-template.js", "mkt-savetpl.js"];
+const mods = ["mkt-exec.js", "mkt-plan.js", "mkt-ux.js", "mkt-auto.js", "mkt-dash.js", "mkt-pdf.js", "mkt-kanban.js", "mkt-kpi.js", "mkt-template.js", "mkt-savetpl.js", "mkt-compare.js"];
 let pass = 0, fail = 0;
 function check(name, cond) { if (cond) pass++; else { fail++; console.log("FAIL:", name); } }
 
