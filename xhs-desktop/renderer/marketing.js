@@ -70,6 +70,8 @@ window.MKT.listActions = {};
 window.MKT.registerListAction = (label, fn) => { window.MKT.listActions[label] = fn; };
 window.MKT.gate = null;
 window.MKT.setGate = (fn) => { window.MKT.gate = fn; };
+window.MKT.toolbarButtons = [];
+window.MKT.registerToolbarButton = (label, fn) => { window.MKT.toolbarButtons.push({ label, fn }); };
 window.MKT.projects = { projects: [] };
 window.MKT.current = null;
 window.MKT.stage = "deconstruct";
@@ -122,6 +124,7 @@ window.renderMarketing = function renderMarketing() {
   $("marketingStage").innerHTML = `<div class="mkt-toolbar">
     <button id="mktNew">＋ 新建项目</button>
     <button id="mktExport">导出方案(Markdown)</button>
+    ${window.MKT.toolbarButtons.map((b, i) => `<button class="mkt-tb" data-tb="${i}">${esc(b.label)}</button>`).join("")}
     <span class="filter-count" id="mktCount"></span>
   </div>
   <div class="mkt-list" id="mktList"></div>
@@ -135,6 +138,7 @@ window.renderMarketing = function renderMarketing() {
     mktCurrent = p.id; mktStage = "deconstruct"; mktSync();
     renderMarketing();
   };
+  document.querySelectorAll(".mkt-tb").forEach(btn => btn.onclick = () => window.MKT.toolbarButtons[Number(btn.dataset.tb)].fn());
   $("mktExport").onclick = async () => {
     if (!mktCurrent) { appendLog("\n[全案营销] 请先打开一个项目\n"); return; }
     const p = mktProjects.projects.find(x => x.id === mktCurrent);
