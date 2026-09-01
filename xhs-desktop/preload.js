@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("api", {
   importLinks: (text) => ipcRenderer.invoke("import-links", text),
   openDir: () => ipcRenderer.invoke("open-dir"),
   getTrend: (userId) => ipcRenderer.invoke("get-trend", userId),
+  getGrowthRanking: () => ipcRenderer.invoke("get-growth-ranking"),
   onLog: (cb) => ipcRenderer.on("log", (e, text) => cb(text)),
   onStatus: (cb) => ipcRenderer.on("status", (e, s) => cb(s)),
   onState: (cb) => ipcRenderer.on("state", (e, s) => cb(s))

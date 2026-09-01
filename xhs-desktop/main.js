@@ -3,6 +3,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const XLSX = require("xlsx");
+const { parseTags, computeTier, interactionRatio } = require(path.join(__dirname, "..", "xhs采集", "lib.js"));
 
 // 打包后应用位于 .app 内部，默认数据目录改为探测常见位置
 function defaultDataDir() {
@@ -69,8 +70,7 @@ function readState(dir) {
       const n = j.followers_num;
       if (n != null) { fansTotal += n; fansCount++; if (n >= 10000) fans10k++; }
     }
-    let interactionRatio = "";
-    if (j.likes_collects_num != null && j.followers_num) interactionRatio = (j.likes_collects_num / j.followers_num).toFixed(2);
+    const pt = parseTags(j.tags);
     rows.push({
       user_id: id,
       nickname: j.nickname || "",
@@ -80,7 +80,11 @@ function readState(dir) {
       followers_num: j.followers_num ?? "",
       likes_collects: j.likes_collects || "",
       likes_collects_num: j.likes_collects_num ?? "",
-      interaction_ratio: interactionRatio,
+      interaction_ratio: interactionRatio(j.likes_collects_num, j.followers_num),
+      age: pt.age,
+      constellation: pt.constellation,
+      industry: pt.industry,
+      tier: computeTier(j.followers_num),
       tags: j.tags || "",
       status: j.status || "",
       ts: j.ts || ""
@@ -239,6 +243,47 @@ ipcMain.handle("import-links", async (e, text) => {
   return { result: out, state: readState(dataDir) };
 });
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
+ipcMain.handle("get-growth-ranking", () => {
+  const snapFile = path.join(dataDir, "snapshots.jsonl");
+  const byId = {};
+  if (fs.existsSync(snapFile)) {
+    for (const line of fs.readFileSync(snapFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.followers_num == null) continue;
+        (byId[j.user_id] = byId[j.user_id] || []).push(j);
+      } catch (err) {}
+    }
+  }
+  const latest = {};
+  const progressFile = path.join(dataDir, "progress.jsonl");
+  if (fs.existsSync(progressFile)) {
+    for (const line of fs.readFileSync(progressFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try { const j = JSON.parse(line); latest[j.user_id] = j; } catch (err) {}
+    }
+  }
+  const ranking = [];
+  for (const uid of Object.keys(byId)) {
+    const snaps = byId[uid].slice().sort((a, b) => a.ts.localeCompare(b.ts));
+    if (snaps.length < 2) continue;
+    const base = snaps[0].followers_num, now = snaps[snaps.length - 1].followers_num;
+    const delta = now - base;
+    const p = latest[uid] || {};
+    ranking.push({
+      user_id: uid,
+      nickname: snaps[snaps.length - 1].nickname || p.nickname || "",
+      region: p.region || "",
+      tier: computeTier(now),
+      base, now, delta,
+      delta_pct: base ? Math.round((delta / base) * 1000) / 10 : null,
+      snapshots: snaps.length
+    });
+  }
+  ranking.sort((a, b) => b.delta - a.delta);
+  return ranking;
+});
 ipcMain.handle("get-trend", (e, userId) => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
   const points = [];
@@ -305,7 +350,9 @@ function createWindow() {
               statCards: document.querySelectorAll(".stat-card").length,
               scheduleUI: !!document.getElementById("scheduleTime"),
               trendModal: !!document.getElementById("trendMask"),
-              tableHeaderCols: document.querySelectorAll("#tbody")[0] ? document.querySelectorAll("thead th").length : 0
+              tableHeaderCols: document.querySelectorAll("#tbody")[0] ? document.querySelectorAll("thead th").length : 0,
+              tabs: document.querySelectorAll(".tab").length,
+              rankView: !!document.getElementById("viewRank")
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
