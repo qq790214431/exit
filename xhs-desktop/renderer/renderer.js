@@ -303,8 +303,11 @@ window.api.getConfig().then(() => refreshRecentDirs());
 $("openDirBtn").onclick = () => window.api.openDir();
 
 // 标签页切换
-$("tabList").onclick = () => { $("tabList").classList.add("active"); $("tabRank").classList.remove("active"); $("viewList").classList.remove("hidden"); $("viewRank").classList.add("hidden"); };
-$("tabRank").onclick = () => { $("tabRank").classList.add("active"); $("tabList").classList.remove("active"); $("viewRank").classList.remove("hidden"); $("viewList").classList.add("hidden"); loadRanking(); };
+function hideAllViews() { $("viewList").classList.add("hidden"); $("viewRank").classList.add("hidden"); $("viewDash").classList.add("hidden"); }
+function setTab(active) { ["tabList", "tabRank", "tabDash"].forEach(t => $(t).classList.toggle("active", t === active)); }
+$("tabList").onclick = () => { setTab("tabList"); hideAllViews(); $("viewList").classList.remove("hidden"); };
+$("tabRank").onclick = () => { setTab("tabRank"); hideAllViews(); $("viewRank").classList.remove("hidden"); loadRanking(); };
+$("tabDash").onclick = () => { setTab("tabDash"); hideAllViews(); $("viewDash").classList.remove("hidden"); loadDashboard(); };
 let chartRank = null;
 async function loadRanking() {
   const ranking = await window.api.getGrowthRanking();
@@ -333,6 +336,67 @@ async function loadRanking() {
   }, true);
 }
 $("rankRefresh").onclick = () => { loadRanking(); loadRankMap(); };
+
+// 数据看板
+let chartDashTrend = null, chartTierPie = null, chartDashRegion = null, chartRatioDist = null;
+async function loadDashboard() {
+  const okRows = state.rows.filter(r => r.status === "ok");
+  const darkAxis = { axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" }, splitLine: { lineStyle: { color: "rgba(0,229,255,.06)" } } };
+
+  const tierCount = {};
+  for (const r of okRows) if (r.tier) tierCount[r.tier] = (tierCount[r.tier] || 0) + 1;
+  if (!chartTierPie) chartTierPie = echarts.init($("chartTierPie"));
+  chartTierPie.setOption({
+    backgroundColor: "transparent",
+    series: [{ type: "pie", radius: ["42%", "68%"], data: Object.entries(tierCount).map(([n, v]) => ({ name: n, value: v })), label: { color: "#d6e4ff" } }],
+    legend: { bottom: 0, textStyle: { color: "#7fb4d4" } },
+    tooltip: { trigger: "item", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+
+  const regCount = {};
+  for (const r of okRows) if (r.region) regCount[r.region] = (regCount[r.region] || 0) + 1;
+  const regTop = Object.entries(regCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  if (!chartDashRegion) chartDashRegion = echarts.init($("chartDashRegion"));
+  chartDashRegion.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 30, top: 8, bottom: 8, containLabel: true },
+    xAxis: { type: "value", minInterval: 1, ...darkAxis },
+    yAxis: { type: "category", data: regTop.map(d => d[0]).reverse(), axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" } },
+    series: [{ type: "bar", data: regTop.map(d => d[1]).reverse(), barMaxWidth: 16, itemStyle: { color: "#00e5ff" } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+
+  const buckets = { "<1": 0, "1-3": 0, "3-5": 0, "5-10": 0, "10+": 0 };
+  for (const r of okRows) { const v = parseFloat(r.interaction_ratio); if (isNaN(v)) continue; if (v < 1) buckets["<1"]++; else if (v < 3) buckets["1-3"]++; else if (v < 5) buckets["3-5"]++; else if (v < 10) buckets["5-10"]++; else buckets["10+"]++; }
+  if (!chartRatioDist) chartRatioDist = echarts.init($("chartRatioDist"));
+  chartRatioDist.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 30, top: 20, bottom: 8, containLabel: true },
+    xAxis: { type: "category", data: Object.keys(buckets), ...darkAxis },
+    yAxis: { type: "value", minInterval: 1, ...darkAxis },
+    series: [{ type: "bar", data: Object.values(buckets), barMaxWidth: 40, itemStyle: { color: "#ff2d95" } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(255,45,149,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+
+  const dash = await window.api.getDashboard();
+  if (!chartDashTrend) chartDashTrend = echarts.init($("chartDashTrend"));
+  chartDashTrend.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 30, top: 20, bottom: 8, containLabel: true },
+    xAxis: { type: "category", data: dash.trend.map(t => t.day), ...darkAxis },
+    yAxis: { type: "value", ...darkAxis },
+    series: [{ type: "line", smooth: true, data: dash.trend.map(t => t.total), symbolSize: 5, lineStyle: { color: "#00e5ff", width: 2 }, itemStyle: { color: "#00e5ff" }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "rgba(0,229,255,.3)" }, { offset: 1, color: "rgba(0,229,255,0)" }]) } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+  $("dashSummary").textContent = `粉丝总量趋势：快照覆盖 ${dash.trend.length} 天 · 当前粉丝总量 ${fmt(dash.trend.length ? dash.trend[dash.trend.length - 1].total : 0)} · 最近更新 ${dash.lastUpdate || "-"}`;
+}
+
+// 导出运营档案
+$("profileBtn").onclick = async () => {
+  appendLog("\n[导出档案] 生成达人运营档案...\n");
+  const s = await window.api.exportProfiles();
+  renderState(s);
+};
 
 // 验证码记录弹窗
 $("captchaListBtn").onclick = async () => {
@@ -488,7 +552,7 @@ document.querySelectorAll("th[data-key]").forEach(th => {
   };
 });
 
-window.addEventListener("resize", () => { if (chartRegion) chartRegion.resize(); if (chartFans) chartFans.resize(); if (chartRank) chartRank.resize(); });
+window.addEventListener("resize", () => { [chartRegion, chartFans, chartRank, chartTrend, chartDashTrend, chartTierPie, chartDashRegion, chartRatioDist].forEach(c => c && c.resize()); });
 
 window.api.getState().then(renderState);
 loadRankMap();

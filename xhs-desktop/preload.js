@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld("api", {
   readImage: (file) => ipcRenderer.invoke("read-image", file),
   getTrend: (userId) => ipcRenderer.invoke("get-trend", userId),
   getGrowthRanking: () => ipcRenderer.invoke("get-growth-ranking"),
+  getDashboard: () => ipcRenderer.invoke("get-dashboard"),
+  exportProfiles: () => ipcRenderer.invoke("export-profiles"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),
   getNotes: () => ipcRenderer.invoke("get-notes"),
   saveNote: (userId, patch) => ipcRenderer.invoke("save-note", userId, patch),

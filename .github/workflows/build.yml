@@ -41,6 +41,18 @@ jobs:
           name: mac-dmg
           path: xhs-desktop/release/*.dmg
 
+  release:
+    needs: [build-mac, build-win]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+
   build-win:
     needs: test
     runs-on: windows-latest
