@@ -72,6 +72,13 @@ function runtimeEnv(extra) {
   return env;
 }
 
+// ---------- 最近目录 ----------
+function rememberDir(dir) {
+  const recent = (config.recentDirs || []).filter(d => d !== dir);
+  recent.unshift(dir);
+  saveConfig({ recentDirs: recent.slice(0, 6) });
+}
+
 // ---------- 备注/黑名单 ----------
 function notesPath() { return path.join(dataDir, "notes.json"); }
 function loadNotes() {
@@ -222,6 +229,7 @@ ipcMain.handle("pick-dir", async () => {
   if (!r.canceled && r.filePaths[0]) {
     dataDir = r.filePaths[0];
     saveConfig({ dataDir });
+    rememberDir(dataDir);
     ensureDataDirFiles();
     return readState(dataDir);
   }
@@ -308,6 +316,14 @@ ipcMain.handle("export-rows", (e, rows) => {
   XLSX.writeFile(wb, xlsxPath);
   win.webContents.send("log", `已导出筛选结果（${clean.length} 行）: ${csvPath} / ${xlsxPath}\n`);
   return { csv: csvPath, xlsx: xlsxPath, count: clean.length };
+});
+ipcMain.handle("switch-dir", (e, dir) => {
+  if (!dir || !fs.existsSync(dir)) return null;
+  dataDir = dir;
+  saveConfig({ dataDir });
+  rememberDir(dir);
+  ensureDataDirFiles();
+  return readState(dataDir);
 });
 ipcMain.handle("get-notes", () => loadNotes());
 ipcMain.handle("save-note", (e, userId, patch) => {

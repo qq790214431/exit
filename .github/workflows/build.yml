@@ -1,0 +1,69 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: 单元测试
+        working-directory: xhs采集
+        run: node test_units.js
+
+  build-mac:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: 安装依赖
+        working-directory: xhs-desktop
+        run: npm install --no-audit --no-fund
+      - name: 准备运行时
+        working-directory: xhs-desktop
+        run: bash scripts/setup_runtime.sh
+      - name: 打包 mac
+        working-directory: xhs-desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --mac
+      - name: 上传 DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg
+          path: xhs-desktop/release/*.dmg
+
+  build-win:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: 安装依赖
+        working-directory: xhs-desktop
+        run: npm install --no-audit --no-fund
+      - name: 准备运行时
+        working-directory: xhs-desktop
+        shell: bash
+        run: bash scripts/setup_runtime.sh
+      - name: 打包 win
+        working-directory: xhs-desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --win --x64
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-installer
+          path: |
+            xhs-desktop/release/*.exe
+            xhs-desktop/release/*win*.zip
