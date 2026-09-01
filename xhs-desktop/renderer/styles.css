@@ -238,3 +238,17 @@ button.mini { padding: 3px 10px; font-size: 11px; margin-left: auto; }
 .mkt-field textarea { height: 90px; resize: vertical; }
 .mkt-actions2 { grid-column: 1 / -1; }
 .dim { color: var(--dim); }
+
+/* 全案营销 v2 */
+.mkt-group { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 14px; }
+.mkt-group-title { font-size: 13px; font-weight: 700; color: var(--cyan); margin-bottom: 10px; letter-spacing: 1px; }
+.mkt-form { display: flex; flex-direction: column; gap: 12px; }
+.mkt-field { display: flex; flex-direction: column; gap: 5px; }
+.mkt-field label { font-size: 12px; color: var(--dim); }
+.mkt-field input, .mkt-field textarea { width: 100%; }
+.mkt-field textarea { height: 80px; resize: vertical; }
+.row-editor { width: 100%; border-collapse: collapse; }
+.row-editor th { font-size: 11px; color: var(--dim); background: rgba(0,20,40,.5); }
+.row-editor td { padding: 3px; }
+.row-editor input { width: 100%; font-size: 12px; padding: 4px 6px; }
+.mkt-stage-desc { font-size: 12px; color: var(--dim); margin-bottom: 10px; }

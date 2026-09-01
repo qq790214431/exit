@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld("api", {
   getProjects: () => ipcRenderer.invoke("get-projects"),
   saveProject: (p) => ipcRenderer.invoke("save-project", p),
   deleteProject: (id) => ipcRenderer.invoke("delete-project", id),
+  exportProject: (p) => ipcRenderer.invoke("export-project", p),
   runCheck: () => ipcRenderer.invoke("run-check"),
   exportProfiles: () => ipcRenderer.invoke("export-profiles"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),

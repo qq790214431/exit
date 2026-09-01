@@ -198,56 +198,99 @@ async function loadDashboard() {
   chartNotesTrend.setOption({ backgroundColor: "transparent", grid: { left: 8, right: 30, top: 20, bottom: 8, containLabel: true }, xAxis: { type: "category", data: nt.map(t => t.month), ...AXIS }, yAxis: { type: "value", ...AXIS }, series: [{ type: "bar", data: nt.map(t => t.avg_likes), barMaxWidth: 30, itemStyle: { color: "#00ff9d" } }], tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,255,157,.4)", textStyle: { color: "#d6e4ff" } } }, true);
 }
 
-// ============ 全案营销 ============
+// ============ 全案营销（业务体系版） ============
 const MKT_STAGES = [
-  { key: "deconstruct", title: "S1 拆解业务", fields: [
-    { k: "brand", label: "品牌名", type: "text" },
-    { k: "industry", label: "行业/类目", type: "text" },
-    { k: "products", label: "产品（逗号分隔：名称/卖点）", type: "text" },
-    { k: "audience", label: "目标人群（年龄/性别/城市/兴趣）", type: "text" },
-    { k: "goal", label: "营销目标", type: "text" },
-    { k: "budget", label: "预算（元）", type: "text" },
-    { k: "period", label: "周期（起止）", type: "text" },
-    { k: "platforms", label: "平台（默认小红书）", type: "text" }
+  { key: "deconstruct", title: "S1 拆解业务", desc: "拆解业务体系：商业模式画布 + 品牌定位 + 目标与预算", groups: [
+    { title: "商业模式画布", fields: [
+      { k: "customer_segments", label: "客户细分", type: "textarea" },
+      { k: "value_proposition", label: "价值主张", type: "textarea" },
+      { k: "channels", label: "渠道", type: "textarea" },
+      { k: "customer_relations", label: "客户关系", type: "textarea" },
+      { k: "revenue_streams", label: "收入来源", type: "textarea" },
+      { k: "key_resources", label: "关键资源", type: "textarea" },
+      { k: "key_activities", label: "关键活动", type: "textarea" },
+      { k: "key_partners", label: "关键伙伴", type: "textarea" },
+      { k: "cost_structure", label: "成本结构", type: "textarea" }
+    ]},
+    { title: "品牌与产品", fields: [
+      { k: "brand", label: "品牌名", type: "text" },
+      { k: "industry", label: "行业/类目", type: "text" },
+      { k: "products", label: "产品（名称/价格/卖点）", type: "textarea" },
+      { k: "positioning", label: "品牌定位", type: "textarea" }
+    ]},
+    { title: "目标与预算", fields: [
+      { k: "goal", label: "营销目标（SMART）", type: "textarea" },
+      { k: "budget_total", label: "总预算（元）", type: "text" },
+      { k: "period", label: "周期", type: "text" },
+      { k: "platforms", label: "平台", type: "text" }
+    ]}
   ]},
-  { key: "research", title: "S2 调研市场", fields: [
-    { k: "keywords", label: "关键词（逗号分隔）", type: "text" },
-    { k: "competitors", label: "竞品（逗号分隔）", type: "text" },
-    { k: "insights", label: "市场洞察 / 机会威胁", type: "textarea" },
-    { k: "pool_filters", label: "达人候选筛选条件（分群/行业/地区）", type: "text" }
+  { key: "research", title: "S2 调研市场", desc: "调研市场与经营模式：竞品矩阵 + 人群画像 + 关键词 + 达人生态", groups: [
+    { title: "市场与人群", fields: [
+      { k: "market", label: "市场规模/趋势/机会", type: "textarea" },
+      { k: "persona", label: "目标人群画像（年龄/性别/城市/消费/兴趣/场景）", type: "textarea" },
+      { k: "keywords", label: "关键词（逗号分隔，含搜索意图）", type: "textarea" }
+    ]},
+    { title: "竞品矩阵", rows: { key: "competitors", cols: ["竞品", "定位", "价格", "渠道", "营销策略", "优势/劣势"] } },
+    { title: "达人生态", fields: [
+      { k: "influencer_eco", label: "达人生态观察（量级/内容/报价水平）", type: "textarea" },
+      { k: "pool_filters", label: "达人候选筛选条件（分群/行业/地区/互动）", type: "text" }
+    ]}
   ]},
-  { key: "strategy", title: "S3 理解业务", fields: [
-    { k: "stp_segments", label: "STP 细分市场", type: "text" },
-    { k: "stp_target", label: "目标客群", type: "text" },
-    { k: "positioning", label: "定位陈述", type: "textarea" },
-    { k: "swot", label: "SWOT 分析", type: "textarea" }
+  { key: "strategy", title: "S3 理解业务", desc: "STP + SWOT + 差异化，明确打法", groups: [
+    { title: "STP", fields: [
+      { k: "stp_segments", label: "市场细分", type: "textarea" },
+      { k: "stp_target", label: "目标客群", type: "textarea" },
+      { k: "positioning_statement", label: "定位陈述", type: "textarea" }
+    ]},
+    { title: "SWOT 与差异化", fields: [
+      { k: "swot", label: "SWOT（优势/劣势/机会/威胁）", type: "textarea" },
+      { k: "differentiation", label: "核心差异化卖点", type: "textarea" }
+    ]}
   ]},
-  { key: "plan", title: "S4 开发计划", fields: [
-    { k: "content_themes", label: "内容主题 / 选题（逗号分隔）", type: "text" },
-    { k: "influencer_matrix", label: "达人矩阵（昵称/分群/预算）", type: "textarea" },
-    { k: "schedule", label: "排期 / 里程碑", type: "textarea" },
-    { k: "kpi", label: "KPI（提及/互动/涨粉目标）", type: "text" }
+  { key: "plan", title: "S4 开发计划", desc: "内容日历 + 达人矩阵 + 预算 + 里程碑——可直接落地执行", groups: [
+    { title: "内容日历", rows: { key: "content_calendar", cols: ["周次", "选题/主题", "格式", "关联卖点", "达人", "发布日期", "状态"] } },
+    { title: "达人执行矩阵", rows: { key: "influencer_matrix", cols: ["达人昵称", "分群", "粉丝数", "预算", "任务/内容", "状态"] } },
+    { title: "预算分配", rows: { key: "budget_alloc", cols: ["项目", "金额(元)", "占比%"] } },
+    { title: "里程碑", rows: { key: "milestones", cols: ["里程碑", "日期", "验收标准"] } },
+    { title: "KPI", fields: [{ k: "kpi", label: "KPI（提及/互动/涨粉/转化目标）", type: "textarea" }] }
   ]},
-  { key: "execution", title: "S5 落地执行", fields: [
-    { k: "tasks", label: "任务清单（每行：任务/负责人/截止）", type: "textarea" },
-    { k: "status", label: "执行状态", type: "text" },
-    { k: "notes", label: "备注", type: "textarea" }
+  { key: "execution", title: "S5 落地执行", desc: "任务看板 + 执行数据 + 复盘", groups: [
+    { title: "任务清单（可勾选状态）", rows: { key: "tasks", cols: ["任务", "负责人", "截止日期", "关联（达人/内容）", "状态(待办/进行中/已完成)"] } },
+    { title: "执行与复盘", fields: [
+      { k: "results", label: "执行数据/结果（实际互动/涨粉/转化）", type: "textarea" },
+      { k: "notes", label: "复盘与下一步", type: "textarea" }
+    ]}
   ]}
 ];
-let mktProjects = [], mktCurrent = null, mktStage = "deconstruct";
+let mktProjects = { projects: [] }, mktCurrent = null, mktStage = "deconstruct";
 
 function mktProgress(p) {
-  const done = MKT_STAGES.filter(s => {
+  let filled = 0, total = 0;
+  for (const s of MKT_STAGES) {
     const ph = (p.phases || {})[s.key] || {};
-    return Object.values(ph).some(v => v && String(v).trim());
-  }).length;
-  return Math.round(done / MKT_STAGES.length * 100);
+    for (const g of s.groups) {
+      if (g.rows) { total++; if ((ph[g.rows.key] || []).length) filled++; }
+      else for (const f of g.fields) { total++; if (ph[f.k] && String(ph[f.k]).trim()) filled++; }
+    }
+  }
+  return total ? Math.round(filled / total * 100) : 0;
 }
 function emptyPhases() { return { deconstruct: {}, research: {}, strategy: {}, plan: {}, execution: {} }; }
+
+function rowEditorHTML(rk, cols, rows) {
+  let html = `<table class="row-editor"><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}<th style="width:36px"></th></tr></thead><tbody>`;
+  (rows || []).forEach((r, i) => {
+    html += `<tr>${cols.map((c, j) => `<td><input data-row="${rk}" data-i="${i}" data-j="${j}" value="${esc(r[j] || "")}" /></td>`).join("")}<td><button class="mini row-del" data-key="${rk}" data-i="${i}">✕</button></td></tr>`;
+  });
+  html += `</tbody></table><button class="mini row-add" data-key="${rk}" data-cols="${cols.length}">＋ 添加一行</button>`;
+  return html;
+}
 
 function renderMarketing() {
   $("marketingStage").innerHTML = `<div class="mkt-toolbar">
     <button id="mktNew">＋ 新建项目</button>
+    <button id="mktExport">导出方案(Markdown)</button>
     <span class="filter-count" id="mktCount"></span>
   </div>
   <div class="mkt-list" id="mktList"></div>
@@ -259,6 +302,13 @@ function renderMarketing() {
     mktProjects = await window.api.saveProject(p);
     mktCurrent = p.id; mktStage = "deconstruct";
     renderMarketing();
+  };
+  $("mktExport").onclick = async () => {
+    if (!mktCurrent) { appendLog("\n[全案营销] 请先打开一个项目\n"); return; }
+    const p = mktProjects.projects.find(x => x.id === mktCurrent);
+    if (!p) return;
+    appendLog("\n[全案营销] 导出方案...\n");
+    await window.api.exportProject(p);
   };
   renderMktList();
   if (mktCurrent) renderMktWorkspace();
@@ -283,22 +333,53 @@ function renderMktWorkspace() {
   const stageNav = MKT_STAGES.map(s => `<button class="mkt-stage ${s.key === mktStage ? "active" : ""}" data-key="${s.key}">${s.title}</button>`).join("");
   const st = MKT_STAGES.find(s => s.key === mktStage);
   const ph = (p.phases && p.phases[mktStage]) || {};
-  const fields = st.fields.map(f => `
-    <div class="mkt-field"><label>${f.label}</label>
-    ${f.type === "textarea" ? `<textarea data-k="${f.k}">${esc(ph[f.k] || "")}</textarea>` : `<input type="text" data-k="${f.k}" value="${esc(ph[f.k] || "")}" />`}
-    </div>`).join("");
+  const groups = st.groups.map(g => {
+    let inner = "";
+    if (g.rows) {
+      inner = rowEditorHTML(g.rows.key, g.rows.cols, ph[g.rows.key] || []);
+    } else {
+      inner = g.fields.map(f => `
+        <div class="mkt-field"><label>${f.label}</label>
+        ${f.type === "textarea" ? `<textarea data-k="${f.k}">${esc(ph[f.k] || "")}</textarea>` : `<input type="text" data-k="${f.k}" value="${esc(ph[f.k] || "")}" />`}
+        </div>`).join("");
+    }
+    return `<div class="mkt-group"><div class="mkt-group-title">${g.title}</div>${inner}</div>`;
+  }).join("");
   $("mktWorkspace").innerHTML = `
     <div class="mkt-head">
       <div class="mkt-title">${esc(p.name)} <span class="dim">· ${esc(p.client || "未填客户")}</span></div>
+      <div class="mkt-stage-desc">${st.desc}</div>
       <div class="mkt-stages">${stageNav}</div>
     </div>
-    <div class="mkt-form">${fields}
-      <div class="mkt-actions2"><button id="mktSave" class="primary">保存阶段</button></div>
+    <div class="mkt-form">${groups}
+      <div class="mkt-actions2"><button id="mktSave" class="primary">保存阶段</button><span class="filter-count" id="mktSaveTip"></span></div>
     </div>`;
   document.querySelectorAll(".mkt-stage").forEach(b => b.onclick = () => { mktStage = b.dataset.key; renderMktWorkspace(); });
+  document.querySelectorAll(".row-add").forEach(btn => btn.onclick = () => {
+    const rk = btn.dataset.key, n = Number(btn.dataset.cols);
+    ph[rk] = ph[rk] || [];
+    ph[rk].push(new Array(n).fill(""));
+    renderMktWorkspace();
+  });
+  document.querySelectorAll(".row-del").forEach(btn => btn.onclick = () => {
+    ph[btn.dataset.key].splice(Number(btn.dataset.i), 1);
+    renderMktWorkspace();
+  });
   $("mktSave").onclick = async () => {
     const out = {};
     document.querySelectorAll(".mkt-form [data-k]").forEach(el => out[el.dataset.k] = el.value);
+    MKT_STAGES.filter(s => s.key === mktStage).forEach(s => s.groups.forEach(g => {
+      if (g.rows) {
+        const ncols = g.rows.cols.length;
+        const grid = {};
+        document.querySelectorAll(`[data-row="${g.rows.key}"]`).forEach(inp => {
+          const i = Number(inp.dataset.i), j = Number(inp.dataset.j);
+          grid[i] = grid[i] || new Array(ncols).fill("");
+          grid[i][j] = inp.value;
+        });
+        out[g.rows.key] = Object.keys(grid).sort((a, b) => a - b).map(k => grid[k]);
+      }
+    }));
     p.phases = p.phases || emptyPhases();
     p.phases[mktStage] = out;
     mktProjects = await window.api.saveProject(p);
@@ -309,204 +390,6 @@ function renderMktWorkspace() {
 async function mktInit() {
   try { mktProjects = await window.api.getProjects(); } catch (e) { mktProjects = { projects: [] }; }
 }
-
-// ============ 日志 ============
-function appendLog(text) {
-  state.logBuf += text;
-  if (state.logBuf.length > logMax) state.logBuf = state.logBuf.slice(-logMax);
-  $("log") ? ($("log").textContent = state.logBuf, $("log").scrollTop = $("log").scrollHeight) : null;
-}
-
-function getOpts() {
-  return { concurrency: Number($("concurrency").value) || 3, max: Number($("max").value) || 0, captchaBurst: Number($("captchaBurst").value) || 8, cooldown: Number($("cooldown").value) || 0 };
-}
-function setRunning(running) {
-  state.running = running;
-  $("startBtn").disabled = running;
-  $("stopBtn").disabled = !running;
-  $("status").textContent = running ? "RUNNING…" : "STANDBY";
-}
-
-window.api.onStatus((s) => { $("status").textContent = s.text; setRunning(s.running); });
-window.api.onState(renderState);
-window.api.onLog(appendLog);
-
-$("startBtn").onclick = () => { window.api.saveConfig(getOpts()); window.api.start(getOpts()); };
-$("stopBtn").onclick = () => window.api.stop();
-$("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) { renderState(s); refreshRecentDirs(); } };
-$("openDirBtn").onclick = () => window.api.openDir();
-function refreshRecentDirs() {
-  window.api.getConfig().then(cfg => {
-    const sel = $("recentDirs");
-    sel.innerHTML = '<option value="">最近目录…</option>' + (cfg.recentDirs || []).map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
-  });
-}
-$("recentDirs").addEventListener("change", async () => {
-  const v = $("recentDirs").value; if (!v) return;
-  const s = await window.api.switchDir(v); if (s) renderState(s);
-  refreshRecentDirs();
-});
-
-async function runMode(mode, confirmText) {
-  if (confirmText && !confirm(confirmText)) return;
-  appendLog(`\n[启动模式: ${mode}]\n`);
-  const s = await window.api.runMode(mode, getOpts());
-  renderState(s);
-  appendLog(`[模式完成: ${mode}]\n`);
-}
-$("refillBtn").onclick = () => runMode("refill", "补全缺失：只重采缺粉丝数/地区的账号？");
-$("refreshBtn").onclick = () => runMode("refresh", "刷新粉丝：重采所有成功账号（用于涨粉分析）？");
-$("retryBtn").onclick = () => runMode("retry", "重试失败：清除放弃标记并重试失败账号？");
-$("compactBtn").onclick = () => runMode("compact", "压缩进度：progress.jsonl 保留每账号最新一条（自动备份）？");
-$("loginBtn").onclick = async () => { appendLog("\n[登录] 请在弹出的浏览器窗口扫码登录...\n"); await window.api.runLogin(); };
-$("notesBtn").onclick = async () => {
-  const okRows = currentRows().filter(r => r.status === "ok").slice(0, 10);
-  if (!okRows.length) { appendLog("\n[笔记采集] 当前筛选无成功账号\n"); return; }
-  appendLog(`\n[笔记采集] 对 ${okRows.length} 个账号采集笔记（每账号前 10 篇）...\n`);
-  const s = await window.api.runNotes(okRows.map(r => r.user_id)); renderState(s);
-};
-$("checkBtn").onclick = async () => { appendLog("\n[巡检] 数据健康检查中...\n"); await window.api.runCheck(); };
-$("updateBtn").onclick = () => window.api.checkUpdate();
-
-$("exportBtn").onclick = async () => { $("exportBtn").disabled = true; appendLog("\n[导出 CSV]...\n"); const s = await window.api.exportCsv(); renderState(s); $("exportBtn").disabled = false; };
-$("exportXlsxBtn").onclick = async () => { $("exportXlsxBtn").disabled = true; appendLog("\n[导出 Excel]...\n"); const s = await window.api.exportXlsx(); renderState(s); $("exportXlsxBtn").disabled = false; };
-$("exportFilteredBtn").onclick = async () => {
-  const rows = currentRows();
-  if (!rows.length) { appendLog("\n[导出筛选] 当前无匹配行\n"); return; }
-  $("exportFilteredBtn").disabled = true;
-  appendLog(`\n[导出筛选] 导出 ${rows.length} 行...\n`);
-  const r = await window.api.exportRows(rows);
-  appendLog(`已导出: ${r.csv} / ${r.xlsx}\n`);
-  $("exportFilteredBtn").disabled = false;
-};
-$("profileBtn").onclick = async () => { appendLog("\n[导出档案] 生成达人运营档案...\n"); const s = await window.api.exportProfiles(); renderState(s); };
-$("reportBtn").onclick = async () => { appendLog("\n[周报] 生成中...\n"); await window.api.runReport(); };
-$("dashExportBtn").onclick = async () => { appendLog("\n[看板导出] 截图导出中...\n"); const s = await window.api.exportDashboard(); renderState(s); };
-
-// ============ 导入链接 ============
-$("modalPickFile").onclick = async () => {
-  const text = await window.api.pickLinksFile();
-  if (text == null) return;
-  $("linksText").value = text;
-  $("importResult").textContent = `已读取文件（${text.length} 字符），点击"导入并生成清单"`;
-};
-$("modalOk").onclick = async () => {
-  const text = $("linksText").value.trim();
-  if (!text) { $("importResult").textContent = "请先粘贴链接或选择文件"; return; }
-  $("modalOk").disabled = true;
-  $("importResult").textContent = "导入中…\n";
-  const r = await window.api.importLinks(text);
-  $("importResult").textContent = r.result;
-  renderState(r.state);
-  $("modalOk").disabled = false;
-};
-$("gotoCollect").onclick = () => switchView("list");
-
-// ============ 对比 ============
-const selected = new Set();
-$("tbody").addEventListener("change", (e) => {
-  if (e.target.classList.contains("row-check")) { const uid = e.target.dataset.uid; e.target.checked ? selected.add(uid) : selected.delete(uid); }
-});
-$("checkAll").addEventListener("change", (e) => {
-  document.querySelectorAll(".row-check").forEach(cb => cb.checked = e.target.checked);
-  selected.clear();
-  if (e.target.checked) document.querySelectorAll(".row-check").forEach(cb => selected.add(cb.dataset.uid));
-});
-let chartCompare = null;
-$("compareBtn").onclick = async () => {
-  const sel = [...selected];
-  if (sel.length < 1 || sel.length > 4) { appendLog(`\n[对比] 请先在达人列表勾选 1-4 个账号（当前 ${sel.length} 个）\n`); switchView("list"); return; }
-  const rows = sel.map(uid => state.rows.find(r => r.user_id === uid)).filter(Boolean);
-  $("compareTable").innerHTML = `<tr><th>指标</th>${rows.map(r => `<th>${esc(r.nickname)}</th>`).join("")}</tr>` +
-    ["score", "followers_num", "interaction_ratio", "avg_likes", "avg_comments", "tier", "region"].map(k => `<tr><td>${k}</td>${rows.map(r => `<td>${esc(r[k])}</td>`).join("")}</tr>`).join("");
-  if (!chartCompare) chartCompare = echarts.init($("chartCompare"));
-  chartCompare.setOption({ backgroundColor: "transparent", grid: { left: 8, right: 20, top: 30, bottom: 8, containLabel: true }, xAxis: { type: "category", data: ["评分", "粉丝(万)", "互动率", "均赞/篇"] }, yAxis: { type: "value", ...AXIS }, legend: { top: 0, textStyle: { color: "#7fb4d4" } }, series: rows.map((r, i) => ({ name: r.nickname, type: "bar", barMaxWidth: 24, data: [r._score || 0, ((r.followers_num || 0) / 10000), parseFloat(r.interaction_ratio) || 0, parseFloat(r.avg_likes) || 0], itemStyle: { color: ["#00e5ff", "#ff2d95", "#00ff9d", "#ffb020", "#a78bfa"][i % 5] } })), tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } } }, true);
-  $("compareMask").classList.remove("hidden");
-};
-$("compareClose").onclick = () => $("compareMask").classList.add("hidden");
-$("compareMask").onclick = (e) => { if (e.target === $("compareMask")) $("compareMask").classList.add("hidden"); };
-
-// ============ 达人详情/趋势 ============
-let detailUid = "", chartTrend2 = null;
-async function showTrend(uid, nickname) {
-  $("trendTitle").textContent = `◇ 达人详情 · ${nickname || uid}`;
-  $("trendMask").classList.remove("hidden");
-  detailUid = uid;
-  const notes = await window.api.getNotes();
-  const n = notes[uid] || {};
-  $("noteInput").value = n.note || "";
-  $("noteTagsInput").value = (n.tags || []).join(",");
-  $("blacklistChk").checked = !!n.blacklisted;
-  const points = await window.api.getTrend(uid);
-  if (!chartTrend2) chartTrend2 = echarts.init($("chartTrend2"));
-  chartTrend2.setOption({ backgroundColor: "transparent", grid: { left: 8, right: 20, top: 30, bottom: 30, containLabel: true }, xAxis: { type: "category", data: points.map(p => p.ts.slice(5, 16).replace("T", " ")), ...AXIS }, yAxis: { type: "value", ...AXIS }, series: [{ type: "line", smooth: true, data: points.map(p => p.followers_num), symbolSize: 6, lineStyle: { color: "#00e5ff", width: 2 }, itemStyle: { color: "#ff2d95" }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "rgba(0,229,255,.35)" }, { offset: 1, color: "rgba(0,229,255,0)" }]) } }], tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } } }, true);
-  if (points.length < 2) $("chartTrend2").innerHTML = '<div style="color:#6b84b0;padding:40px;text-align:center">快照不足（需至少 2 个时间点）</div>';
-}
-$("trendClose").onclick = () => $("trendMask").classList.add("hidden");
-$("trendMask").onclick = (e) => { if (e.target === $("trendMask")) $("trendMask").classList.add("hidden"); };
-$("noteSave").onclick = async () => {
-  if (!detailUid) return;
-  await window.api.saveNote(detailUid, { note: $("noteInput").value.trim(), tags: $("noteTagsInput").value.split(",").map(t => t.trim()).filter(Boolean), blacklisted: $("blacklistChk").checked });
-  appendLog("\n[备注] 已保存\n");
-  const s = await window.api.getState(); renderState(s);
-};
-
-// ============ 验证码记录 ============
-$("captchaListBtn") && ($("captchaListBtn").onclick = async () => {
-  const data = await window.api.getCaptchaEvents();
-  $("captchaList").innerHTML = data.events.slice().reverse().map(e => {
-    const shotName = e.shot ? e.shot.split("/").pop() : "";
-    const btn = shotName ? `<button class="mini" data-shot="${esc(shotName)}">查看截图</button>` : "";
-    return `<div class="cap-row"><span class="mono">${esc(e.user_id)}</span><span class="mono dim">${esc(e.ts)}</span>${btn}</div>`;
-  }).join("") || `<div style="color:#6b84b0;padding:12px">暂无验证码记录</div>`;
-  $("captchaImg").src = "";
-  $("captchaMask").classList.remove("hidden");
-  document.querySelectorAll(".cap-row button[data-shot]").forEach(b => b.onclick = async () => { $("captchaImg").src = (await window.api.readImage(b.dataset.shot)) || ""; });
-});
-$("captchaClose") && ($("captchaClose").onclick = () => $("captchaMask").classList.add("hidden"));
-
-// ============ 筛选 ============
-function onFilterChange() {
-  state.filter.search = $("search").value.trim();
-  state.filter.region = $("regionFilter").value;
-  state.filter.status = $("statusFilter").value;
-  state.filter.tier = $("tierFilter").value;
-  state.filter.industry = $("industryFilter").value.trim();
-  state.filter.interact = $("interactFilter").value;
-  state.filter.blacklist = $("blacklistFilter").value;
-  state.filter.fansMin = $("fansMin").value === "" ? null : Number($("fansMin").value);
-  state.filter.fansMax = $("fansMax").value === "" ? null : Number($("fansMax").value);
-  applyFilters();
-}
-["search", "regionFilter", "statusFilter", "fansMin", "fansMax", "tierFilter", "interactFilter", "blacklistFilter"].forEach(id => $(id).addEventListener(id === "search" || id === "industryFilter" ? "input" : "change", onFilterChange));
-$("industryFilter").addEventListener("input", onFilterChange);
-$("clearFilter").onclick = () => {
-  ["search", "regionFilter", "statusFilter", "tierFilter", "interactFilter", "blacklistFilter", "industryFilter", "fansMin", "fansMax"].forEach(id => $(id).value = "");
-  onFilterChange();
-};
-document.querySelectorAll("th[data-key]").forEach(th => th.onclick = () => {
-  const key = th.dataset.key;
-  if (state.sort.key === key) state.sort.dir *= -1; else state.sort = { key, dir: 1 };
-  document.querySelectorAll("th[data-key]").forEach(t => t.style.color = "");
-  th.style.color = "#00e5ff";
-  applyFilters();
-});
-
-// ============ 配置 ============
-window.api.getConfig().then(cfg => {
-  if (!cfg) return;
-  if (cfg.concurrency) $("concurrency").value = cfg.concurrency;
-  if (cfg.max != null) $("max").value = cfg.max;
-  if (cfg.captchaBurst) $("captchaBurst").value = cfg.captchaBurst;
-  if (cfg.cooldown != null) $("cooldown").value = cfg.cooldown;
-  if (cfg.scheduleEnabled != null) $("scheduleEnabled") && ($("scheduleEnabled").checked = !!cfg.scheduleEnabled);
-  if (cfg.reportEnabled != null) $("reportEnabled") && ($("reportEnabled").checked = !!cfg.reportEnabled);
-  if (cfg.interactWeight) { weights.interact = Number(cfg.interactWeight); }
-  if (cfg.growthWeight) { weights.growth = Number(cfg.growthWeight); }
-  refreshRecentDirs();
-});
-
-window.addEventListener("resize", () => { [chartRank, chartTrend, chartTierPie, chartDashRegion, chartRatioDist, chartNotesTrend, chartCompare, chartTrend2].forEach(c => c && c.resize()); });
 
 window.api.getState().then(renderState);
 loadRankMap();

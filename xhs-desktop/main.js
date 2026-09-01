@@ -526,6 +526,37 @@ ipcMain.handle("save-project", (e, project) => {
   saveProjects(data);
   return loadProjects();
 });
+ipcMain.handle("export-project", (e, project) => {
+  if (!project) return false;
+  const STAGE_TITLES = { deconstruct: "S1 拆解业务", research: "S2 调研市场", strategy: "S3 理解业务", plan: "S4 开发计划", execution: "S5 落地执行" };
+  const ROW_LABELS = { competitors: "竞品矩阵", content_calendar: "内容日历", influencer_matrix: "达人执行矩阵", budget_alloc: "预算分配", milestones: "里程碑", tasks: "任务清单" };
+  const ROW_COLS = { competitors: ["竞品", "定位", "价格", "渠道", "营销策略", "优势/劣势"], content_calendar: ["周次", "选题", "格式", "卖点", "达人", "发布日期", "状态"], influencer_matrix: ["达人", "分群", "粉丝", "预算", "任务", "状态"], budget_alloc: ["项目", "金额", "占比"], milestones: ["里程碑", "日期", "验收"], tasks: ["任务", "负责人", "截止", "关联", "状态"] };
+  let md = `# 全案营销方案：${project.name}\n\n`;
+  md += `- 客户：${project.client || "-"} | 状态：${project.status || "-"} | 创建：${(project.created_at || "").slice(0, 10)}\n\n`;
+  for (const [sk, title] of Object.entries(STAGE_TITLES)) {
+    const ph = (project.phases || {})[sk] || {};
+    md += `## ${title}\n\n`;
+    for (const [k, v] of Object.entries(ph)) {
+      if (Array.isArray(v)) {
+        const cols = ROW_COLS[k];
+        if (cols && v.length) {
+          md += `### ${ROW_LABELS[k] || k}\n\n| ${cols.join(" | ")} |\n|${cols.map(() => "---").join("|")}|\n`;
+          for (const row of v) md += `| ${row.map(c => (c || "").replace(/\|/g, "\\|")).join(" | ")} |\n`;
+          md += "\n";
+        }
+      } else if (v && String(v).trim()) {
+        md += `- **${k}**：${v}\n`;
+      }
+    }
+    md += "\n";
+  }
+  const out = path.join(dataDir, "projects", project.name + ".md");
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, md);
+  win.webContents.send("log", `已导出方案 → ${out}\n`);
+  shell.openPath(out);
+  return true;
+});
 ipcMain.handle("delete-project", (e, id) => {
   const data = loadProjects();
   data.projects = data.projects.filter(p => p.id !== id);
