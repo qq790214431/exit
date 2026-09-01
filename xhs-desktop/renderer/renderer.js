@@ -391,6 +391,13 @@ async function loadDashboard() {
   $("dashSummary").textContent = `粉丝总量趋势：快照覆盖 ${dash.trend.length} 天 · 当前粉丝总量 ${fmt(dash.trend.length ? dash.trend[dash.trend.length - 1].total : 0)} · 最近更新 ${dash.lastUpdate || "-"}`;
 }
 
+$("updateBtn").onclick = () => window.api.checkUpdate();
+$("dashExportBtn").onclick = async () => {
+  appendLog("\n[看板导出] 截图导出中...\n");
+  const s = await window.api.exportDashboard();
+  renderState(s);
+};
+
 // 导出运营档案
 $("profileBtn").onclick = async () => {
   appendLog("\n[导出档案] 生成达人运营档案...\n");

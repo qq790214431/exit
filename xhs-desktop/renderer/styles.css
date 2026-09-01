@@ -119,6 +119,7 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
 .tab { border-radius: 8px 8px 0 0; }
 .tab.active { background: rgba(0,229,255,.16); color: #fff; border-color: var(--cyan); box-shadow: 0 0 14px rgba(0,229,255,.3); }
 .dash-row { display: flex; gap: 12px; margin: 0 16px 10px; }
+.dash-actions { margin: 0 16px 12px; }
 .dash-summary { margin: 0 16px 12px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; color: var(--dim); font-size: 12px; font-family: var(--mono); }
 .rank-body { display: flex; margin: 0 16px 10px; gap: 12px; height: 340px; }
 .rank-table-wrap { flex: 1; overflow: auto; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; }

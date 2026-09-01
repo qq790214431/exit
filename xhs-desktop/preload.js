@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld("api", {
   getTrend: (userId) => ipcRenderer.invoke("get-trend", userId),
   getGrowthRanking: () => ipcRenderer.invoke("get-growth-ranking"),
   getDashboard: () => ipcRenderer.invoke("get-dashboard"),
+  checkUpdate: () => ipcRenderer.invoke("check-update"),
+  exportDashboard: () => ipcRenderer.invoke("export-dashboard"),
   exportProfiles: () => ipcRenderer.invoke("export-profiles"),
   exportRows: (rows) => ipcRenderer.invoke("export-rows", rows),
   getNotes: () => ipcRenderer.invoke("get-notes"),

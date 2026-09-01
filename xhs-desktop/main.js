@@ -3,6 +3,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const XLSX = require("xlsx");
+const { autoUpdater } = require("electron-updater");
 let lib;
 try { lib = require("./lib.js"); } catch (e) { lib = require(path.join(__dirname, "..", "xhs采集", "lib.js")); }
 const { parseTags, computeTier, interactionRatio, csvEscape } = lib;
@@ -427,6 +428,17 @@ ipcMain.handle("read-image", (e, file) => {
   return "data:image/png;base64," + fs.readFileSync(p).toString("base64");
 });
 ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
+ipcMain.handle("check-update", () => {
+  try { autoUpdater.checkForUpdates(); return true; } catch (e) { win.webContents.send("log", `[更新] 无法检查: ${e.message}\n`); return false; }
+});
+ipcMain.handle("export-dashboard", async () => {
+  const out = path.join(dataDir, "xhs_dashboard.png");
+  const img = await win.webContents.capturePage();
+  fs.writeFileSync(out, img.toPNG());
+  win.webContents.send("log", `已导出看板截图: ${out}\n`);
+  shell.openPath(out);
+  return readState(dataDir);
+});
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
 ipcMain.handle("get-dashboard", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
@@ -618,10 +630,32 @@ function checkSchedule() {
   });
 }
 
+function setupAutoUpdater() {
+  try {
+    autoUpdater.autoDownload = false;
+    autoUpdater.on("checking-for-update", () => win.webContents.send("log", "\n[更新] 正在检查新版本...\n"));
+    autoUpdater.on("update-available", (info) => {
+      win.webContents.send("log", `\n[更新] 发现新版本 ${info.version}，正在下载...\n`);
+      autoUpdater.downloadUpdate();
+    });
+    autoUpdater.on("update-not-available", () => win.webContents.send("log", "\n[更新] 已是最新版本\n"));
+    autoUpdater.on("update-downloaded", () => {
+      win.webContents.send("log", "\n[更新] 下载完成，重启后安装\n");
+      if (Notification.isSupported()) new Notification({ title: "小红书采集", body: "新版本已下载，重启应用即可安装" }).show();
+      autoUpdater.quitAndInstall();
+    });
+    autoUpdater.on("error", (err) => win.webContents.send("log", `\n[更新] 检查失败: ${err.message}\n`));
+  } catch (e) {
+    win.webContents.send("log", `\n[更新] 初始化失败: ${e.message}\n`);
+  }
+}
+
 app.whenReady().then(() => {
   loadConfig();
   createWindow();
   ensureDataDirFiles();
+  setupAutoUpdater();
+  setTimeout(() => { try { autoUpdater.checkForUpdates(); } catch (e) {} }, 30000);
   setInterval(() => { checkSchedule(); checkReportSchedule(); }, 30000);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
