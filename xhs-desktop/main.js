@@ -306,6 +306,16 @@ ipcMain.handle("backup", () => {
     });
   });
 });
+ipcMain.handle("run-report", async () => {
+  const script = fs.existsSync(path.join(__dirname, "report.js")) ? path.join(__dirname, "report.js") : path.join(__dirname, "..", "xhs采集", "report.js");
+  win.webContents.send("log", "\n[周报] 生成中...\n");
+  const c = spawn("node", [script], { env: { ...process.env, DATA_DIR: dataDir } });
+  c.stdout.on("data", d => win.webContents.send("log", d.toString()));
+  c.stderr.on("data", d => win.webContents.send("log", d.toString()));
+  await new Promise(res => c.on("exit", res));
+  shell.openPath(path.join(dataDir, "xhs_weekly_report.md"));
+  return readState(dataDir);
+});
 ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
 ipcMain.handle("get-growth-ranking", () => {

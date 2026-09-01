@@ -421,6 +421,7 @@ $("clearFilter").onclick = () => {
   onFilterChange();
 };
 $("captchaBtn").onclick = () => window.api.openScreenshots();
+$("reportBtn").onclick = async () => { appendLog("\n[周报] 生成中...\n"); await window.api.runReport(); };
 $("backupBtn").onclick = async () => {
   appendLog("\n[备份] 打包中...\n");
   const r = await window.api.backup();
