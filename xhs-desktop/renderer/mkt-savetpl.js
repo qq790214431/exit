@@ -204,4 +204,59 @@ window.MKT = window.MKT || {};
 
   // ---------- 按钮 2：我的模板 ----------
   window.MKT.registerToolbarButton("我的模板", openLibrary);
+  // ---------- 按钮 3：模板同步到云端 ----------
+  // 读取 localStorage 本地模板数组（xhs_mkt_templates），整体上传到云端覆盖云端模板
+  window.MKT.registerToolbarButton("模板同步到云端", async function () {
+    var templates = readTemplates();
+    try {
+      await window.api.saveTemplates(templates);
+    } catch (e) {
+      window.alert("同步到云端失败：" + (e && e.message ? e.message : String(e)));
+      return;
+    }
+    window.alert("已同步 " + templates.length + " 个模板到云端");
+  });
+
+  // ---------- 按钮 4：模板从云端下载 ----------
+  // 拉取云端模板（window.api.getTemplates() → { version, templates }），按 name 去重合并进
+  // localStorage，云端优先（同名以云端覆盖本地），合并后若「我的模板」弹层已打开则重渲染
+  window.MKT.registerToolbarButton("模板从云端下载", async function () {
+    var cloud;
+    try {
+      cloud = await window.api.getTemplates();
+    } catch (e) {
+      window.alert("从云端获取模板失败：" + (e && e.message ? e.message : String(e)));
+      return;
+    }
+    var cloudList = cloud && Array.isArray(cloud.templates) ? cloud.templates : [];
+    var localList = readTemplates();
+    // 按 name 去重合并：云端优先（同名以云端覆盖本地，其余本地模板保留）
+    var merged = localList.filter(function (t) { return t && t.name; });
+    var cloudNames = {};
+    var mergedCount = 0;
+    cloudList.forEach(function (t) {
+      if (!t || !t.name || cloudNames[t.name]) return; // 跳过无 name 或云端内部重复项
+      cloudNames[t.name] = true;
+      var idx = -1;
+      for (var i = 0; i < merged.length; i++) {
+        if (merged[i].name === t.name) { idx = i; break; }
+      }
+      if (idx >= 0) {
+        merged[idx] = t; // 云端优先：覆盖本地同名模板
+      } else {
+        merged.push(t); // 本地没有同名 → 追加到末尾
+      }
+      mergedCount++;
+    });
+    try {
+      writeTemplates(merged);
+    } catch (e) {
+      window.alert("保存到本地失败：" + (e && e.message ? e.message : String(e)));
+      return;
+    }
+    window.alert("已从云端合并 " + mergedCount + " 个模板");
+    // 若「我的模板」弹层已打开则重渲染
+    var mask = document.getElementById("mytplMask");
+    if (mask) renderGrid(mask);
+  });
 })();
