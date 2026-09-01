@@ -11,6 +11,28 @@ let logMax = 4000;
 let chartRegion = null, chartFans = null;
 let regionSelectInited = false;
 
+const TIER_BASE = { "素人": 20, "尾部": 40, "腰部": 60, "头部": 80 };
+let rankMap = {}; // user_id -> delta_pct（来自涨粉榜，评分用）
+async function loadRankMap() {
+  try { const r = await window.api.getGrowthRanking(); rankMap = {}; for (const x of r) rankMap[x.user_id] = x.delta_pct; } catch (e) {}
+}
+function computeScore(row, median) {
+  let s = TIER_BASE[row.tier] || 0;
+  const ratio = parseFloat(row.interaction_ratio);
+  if (!isNaN(ratio) && median != null && median > 0) {
+    if (ratio >= median * 1.5) s += 20;
+    else if (ratio >= median) s += 12;
+    else s += 4;
+  } else if (!isNaN(ratio)) s += 6;
+  const dp = rankMap[row.user_id];
+  if (dp != null) {
+    if (dp >= 20) s += 12;
+    else if (dp >= 5) s += 8;
+    else if (dp > 0) s += 4;
+    else if (dp < -10) s -= 8;
+  }
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
 function esc(v) {
   return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -89,6 +111,8 @@ function currentRows() {
   if (f.fansMax != null && f.fansMax !== "") rows = rows.filter(r => (r.followers_num ?? -1) <= f.fansMax);
   if (f.tier) rows = rows.filter(r => r.tier === f.tier);
   if (f.industry) rows = rows.filter(r => (r.industry || "").includes(f.industry));
+  if (f.blacklist === "normal") rows = rows.filter(r => !r.blacklisted);
+  else if (f.blacklist === "black") rows = rows.filter(r => r.blacklisted);
   if (f.interact) {
     rows = rows.filter(r => {
       const v = parseFloat(r.interaction_ratio);
@@ -96,9 +120,11 @@ function currentRows() {
       return f.interact === "high" ? v >= med[r.tier] : v < med[r.tier];
     });
   }
+  rows = rows.map(r => ({ ...r, _score: computeScore(r, med[r.tier]) }));
   const { key, dir } = state.sort;
   rows = rows.slice().sort((a, b) => {
     if (key === "followers_num") return ((a[key] ?? -1) - (b[key] ?? -1)) * dir;
+    if (key === "score") return ((a._score ?? 0) - (b._score ?? 0)) * dir;
     return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "zh") * dir;
   });
   return rows;
@@ -118,8 +144,9 @@ function applyFilters() {
   $("filterCount").textContent = `显示 ${rows.length} / ${state.rows.length}`;
   $("tbody").innerHTML = rows.map(r => {
     const st = r.status || "-";
-    return `<tr data-uid="${esc(r.user_id)}" title="点击查看粉丝趋势">
-      <td>${esc(r.nickname)}</td>
+    return `<tr data-uid="${esc(r.user_id)}" title="点击查看详情/趋势/备注" style="${r.blacklisted ? "opacity:.55" : ""}">
+      <td><b style="color:${r._score >= 80 ? "var(--green)" : r._score >= 60 ? "var(--cyan)" : "var(--dim)"}">${r._score || "-"}</b></td>
+      <td>${r.blacklisted ? "🔒 " : ""}${esc(r.nickname)}</td>
       <td>${esc(r.red_id)}</td>
       <td>${esc(r.region)}</td>
       <td>${esc(r.followers)}</td>
@@ -130,9 +157,10 @@ function applyFilters() {
       <td>${esc(r.age)}</td>
       <td>${esc(r.constellation)}</td>
       <td>${esc(r.industry)}</td>
+      <td>${(r.user_tags || []).map(t => `<span class="chip" style="color:var(--purple);border-color:rgba(167,139,250,.4);padding:1px 7px;font-size:11px">${esc(t)}</span>`).join(" ")} ${esc(r.note)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="14" style="color:#6b84b0">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="16" style="color:#6b84b0">无匹配数据</td></tr>`;
   document.querySelectorAll("#tbody tr[data-uid]").forEach(tr => {
     tr.onclick = () => showTrend(tr.dataset.uid, tr.children[0].textContent);
   });
@@ -280,13 +308,20 @@ async function loadRanking() {
     tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
   }, true);
 }
-$("rankRefresh").onclick = loadRanking;
+$("rankRefresh").onclick = () => { loadRanking(); loadRankMap(); };
 
 // 粉丝趋势弹窗
 let chartTrend = null;
+let detailUid = "";
 async function showTrend(uid, nickname) {
-  $("trendTitle").textContent = `◇ 粉丝趋势 · ${nickname || uid}`;
+  $("trendTitle").textContent = `◇ 达人详情 · ${nickname || uid}`;
   $("trendMask").classList.remove("hidden");
+  detailUid = uid;
+  const notes = await window.api.getNotes();
+  const n = notes[uid] || {};
+  $("noteInput").value = n.note || "";
+  $("noteTagsInput").value = (n.tags || []).join(",");
+  $("blacklistChk").checked = !!n.blacklisted;
   const points = await window.api.getTrend(uid);
   if (!chartTrend) chartTrend = echarts.init($("chartTrend"));
   chartTrend.setOption({
@@ -304,6 +339,17 @@ async function showTrend(uid, nickname) {
   if (points.length < 2) $("chartTrend").innerHTML = '<div style="color:#6b84b0;padding:40px;text-align:center">快照不足（需至少 2 个时间点），请先 REFRESH 刷新几轮</div>';
 }
 $("trendClose").onclick = () => $("trendMask").classList.add("hidden");
+$("noteSave").onclick = async () => {
+  if (!detailUid) return;
+  await window.api.saveNote(detailUid, {
+    note: $("noteInput").value.trim(),
+    tags: $("noteTagsInput").value.split(",").map(t => t.trim()).filter(Boolean),
+    blacklisted: $("blacklistChk").checked
+  });
+  appendLog("\n[备注] 已保存\n");
+  const s = await window.api.getState();
+  renderState(s);
+};
 $("trendMask").onclick = (e) => { if (e.target === $("trendMask")) $("trendMask").classList.add("hidden"); };
 
 // 导入链接弹窗
@@ -349,16 +395,22 @@ function onFilterChange() {
   state.filter.tier = $("tierFilter").value;
   state.filter.industry = $("industryFilter").value.trim();
   state.filter.interact = $("interactFilter").value;
+  state.filter.blacklist = $("blacklistFilter").value;
   applyFilters();
 }
-["search", "regionFilter", "statusFilter", "fansMin", "fansMax", "tierFilter", "interactFilter"].forEach(id => {
+["search", "regionFilter", "statusFilter", "fansMin", "fansMax", "tierFilter", "interactFilter", "blacklistFilter"].forEach(id => {
   $(id).addEventListener(id === "search" || id === "industryFilter" ? "input" : "change", onFilterChange);
 });
 $("industryFilter").addEventListener("input", onFilterChange);
 $("clearFilter").onclick = () => {
   $("search").value = ""; $("regionFilter").value = ""; $("statusFilter").value = ""; $("fansMin").value = ""; $("fansMax").value = "";
-  $("tierFilter").value = ""; $("industryFilter").value = ""; $("interactFilter").value = "";
+  $("tierFilter").value = ""; $("industryFilter").value = ""; $("interactFilter").value = ""; $("blacklistFilter").value = "";
   onFilterChange();
+};
+$("backupBtn").onclick = async () => {
+  appendLog("\n[备份] 打包中...\n");
+  const r = await window.api.backup();
+  appendLog(r.ok ? `[备份] 成功（${r.count} 个文件）: ${r.path}\n` : `[备份] 失败: ${r.error}\n`);
 };
 document.querySelectorAll("th[data-key]").forEach(th => {
   th.onclick = () => {
@@ -373,4 +425,5 @@ document.querySelectorAll("th[data-key]").forEach(th => {
 window.addEventListener("resize", () => { if (chartRegion) chartRegion.resize(); if (chartFans) chartFans.resize(); if (chartRank) chartRank.resize(); });
 
 window.api.getState().then(renderState);
-appendLog("就绪。选择数据目录后点击「开始采集」；快捷操作可一键补全/刷新/重试/压缩/导入链接。\n");
+loadRankMap();
+appendLog("就绪。点击行可查看详情/趋势/备注；筛选后可导出。\n");

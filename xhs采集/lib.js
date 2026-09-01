@@ -43,4 +43,24 @@ function csvEscape(v) {
   return s;
 }
 
-module.exports = { parseTags, computeTier, interactionRatio, csvEscape };
+// 达人评分 0-100：分群基础分 + 互动表现（对比同群中位）+ 涨粉速度
+const TIER_BASE = { "素人": 20, "尾部": 40, "腰部": 60, "头部": 80 };
+function computeScore({ tier, ratio, median, deltaPct }) {
+  let s = TIER_BASE[tier] || 0;
+  if (ratio != null && median != null && median > 0) {
+    if (ratio >= median * 1.5) s += 20;
+    else if (ratio >= median) s += 12;
+    else s += 4;
+  } else if (ratio != null) {
+    s += 6;
+  }
+  if (deltaPct != null) {
+    if (deltaPct >= 20) s += 12;
+    else if (deltaPct >= 5) s += 8;
+    else if (deltaPct > 0) s += 4;
+    else if (deltaPct < -10) s -= 8;
+  }
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+module.exports = { parseTags, computeTier, interactionRatio, csvEscape, computeScore };

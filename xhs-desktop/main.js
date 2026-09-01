@@ -42,6 +42,13 @@ function saveConfig(patch) {
   try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2)); } catch (e) {}
 }
 
+// ---------- 备注/黑名单 ----------
+function notesPath() { return path.join(dataDir, "notes.json"); }
+function loadNotes() {
+  try { return JSON.parse(fs.readFileSync(notesPath(), "utf8")); } catch (e) { return {}; }
+}
+function saveNotes(notes) { fs.writeFileSync(notesPath(), JSON.stringify(notes, null, 2)); }
+
 // ---------- 数据读取 ----------
 function readState(dir) {
   const progressFile = path.join(dir, "progress.jsonl");
@@ -63,6 +70,7 @@ function readState(dir) {
   const statusCounts = {};
   const rows = [];
   let fansTotal = 0, fansCount = 0, fans10k = 0;
+  const notes = loadNotes();
   for (const id of Object.keys(latest).sort()) {
     const j = latest[id];
     statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
@@ -87,7 +95,10 @@ function readState(dir) {
       tier: computeTier(j.followers_num),
       tags: j.tags || "",
       status: j.status || "",
-      ts: j.ts || ""
+      ts: j.ts || "",
+      note: notes[id]?.note || "",
+      user_tags: notes[id]?.tags || [],
+      blacklisted: !!(notes[id]?.blacklisted)
     });
   }
   const doneOk = statusCounts.ok || 0;
@@ -263,6 +274,34 @@ ipcMain.handle("export-rows", (e, rows) => {
   win.webContents.send("log", `已导出筛选结果（${clean.length} 行）: ${csvPath} / ${xlsxPath}\n`);
   return { csv: csvPath, xlsx: xlsxPath, count: clean.length };
 });
+ipcMain.handle("get-notes", () => loadNotes());
+ipcMain.handle("save-note", (e, userId, patch) => {
+  const notes = loadNotes();
+  notes[userId] = { ...(notes[userId] || {}), ...patch, updated_at: new Date().toISOString() };
+  saveNotes(notes);
+  return readState(dataDir);
+});
+ipcMain.handle("backup", () => {
+  const backupsDir = path.join(dataDir, "backups");
+  fs.mkdirSync(backupsDir, { recursive: true });
+  const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const out = path.join(backupsDir, `xhs_backup_${ts}.zip`);
+  const files = ["urlmap.json", "progress.jsonl", "snapshots.jsonl", "abandoned.json", "notes.json", "xhs_profiles.csv", "xhs_profiles.xlsx", "xhs_growth.csv", "xhs_profiles_filtered.csv", "xhs_profiles_filtered.xlsx"]
+    .map(f => path.join(dataDir, f)).filter(f => fs.existsSync(f));
+  return new Promise(resolve => {
+    const args = ["-j", out, ...files];
+    const c = spawn("zip", args);
+    c.on("error", () => resolve({ ok: false, error: "zip 不可用" }));
+    c.on("exit", code => {
+      if (code === 0) {
+        win.webContents.send("log", `已备份 ${files.length} 个文件 → ${out}\n`);
+        resolve({ ok: true, path: out, count: files.length });
+      } else {
+        resolve({ ok: false, error: `zip exit ${code}` });
+      }
+    });
+  });
+});
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
 ipcMain.handle("get-growth-ranking", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");
@@ -377,7 +416,11 @@ function createWindow() {
               tierFilter: !!document.getElementById("tierFilter"),
               industryFilter: !!document.getElementById("industryFilter"),
               interactFilter: !!document.getElementById("interactFilter"),
-              exportFilteredBtn: !!document.getElementById("exportFilteredBtn")
+              exportFilteredBtn: !!document.getElementById("exportFilteredBtn"),
+              backupBtn: !!document.getElementById("backupBtn"),
+              blacklistFilter: !!document.getElementById("blacklistFilter"),
+              noteSave: !!document.getElementById("noteSave"),
+              scoreHeader: document.querySelectorAll("#viewList thead th").length
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
