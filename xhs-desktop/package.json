@@ -1,6 +1,6 @@
 {
   "name": "xhs-desktop",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "小红书主页链接采集工具（桌面版）",
   "main": "main.js",
   "author": "xhs-desktop",
@@ -23,7 +23,8 @@
       "lib.js",
       "import_links.js",
       "report.js",
-      "package.json"
+      "package.json",
+      "scrape.js"
     ],
     "directories": {
       "output": "release"
@@ -36,7 +37,24 @@
       "icon": "build/icon.png",
       "category": "public.app-category.utilities"
     },
-    "npmRebuild": false
+    "npmRebuild": false,
+    "extraResources": [
+      {
+        "from": "runtime/node",
+        "to": "runtime/node"
+      },
+      {
+        "from": "runtime/node_modules/playwright-core",
+        "to": "runtime/node_modules/playwright-core"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "build/icon.png"
+    }
   },
   "dependencies": {
     "echarts": "^6.1.0",
