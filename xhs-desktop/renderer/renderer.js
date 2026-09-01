@@ -21,6 +21,12 @@ function renderState(s) {
   $("percent").textContent = s.total ? Math.round(s.doneOk / s.total * 100) + "%" : "-";
   $("overallBar").style.width = s.total ? (s.doneOk / s.total * 100) + "%" : "0%";
   $("roundText").textContent = s.round && s.round.total ? `本轮 ${s.round.done}/${s.round.total}` : "";
+  $("stTotal").textContent = s.total;
+  $("stOk").textContent = s.doneOk;
+  $("stFansTotal").textContent = fmt(s.stats.fansTotal);
+  $("stFansAvg").textContent = fmt(s.stats.fansAvg);
+  $("stFans10k").textContent = s.stats.fans10k;
+  $("stFail").textContent = s.stats.fail + (s.stats.abandoned ? ` (+放弃${s.stats.abandoned})` : "");
   const chips = [
     ["ok", `成功 ${s.statusCounts.ok || 0}`],
     ["captcha", `验证码 ${s.statusCounts.captcha || 0}`],
@@ -32,6 +38,13 @@ function renderState(s) {
   state.rows = s.rows || [];
   if (!regionSelectInited && s.rows.length) initRegionSelect(s.rows);
   applyFilters();
+}
+
+function fmt(n) {
+  if (n == null || isNaN(n)) return "-";
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + "亿";
+  if (n >= 10000) return (n / 10000).toFixed(1) + "万";
+  return String(n);
 }
 
 function initRegionSelect(rows) {
@@ -58,9 +71,8 @@ function currentRows() {
   if (f.fansMax != null && f.fansMax !== "") rows = rows.filter(r => (r.followers_num ?? -1) <= f.fansMax);
   const { key, dir } = state.sort;
   rows = rows.slice().sort((a, b) => {
-    let av = a[key], bv = b[key];
-    if (key === "followers_num") { av = av ?? -1; bv = bv ?? -1; return (av - bv) * dir; }
-    return String(av ?? "").localeCompare(String(bv ?? ""), "zh") * dir;
+    if (key === "followers_num") return ((a[key] ?? -1) - (b[key] ?? -1)) * dir;
+    return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "zh") * dir;
   });
   return rows;
 }
@@ -68,7 +80,7 @@ function currentRows() {
 function applyFilters() {
   const rows = currentRows();
   $("filterCount").textContent = `显示 ${rows.length} / ${state.rows.length}`;
-  const rowsHtml = rows.map(r => {
+  $("tbody").innerHTML = rows.map(r => {
     const st = r.status || "-";
     return `<tr>
       <td>${esc(r.nickname)}</td>
@@ -79,27 +91,29 @@ function applyFilters() {
       <td>${esc(r.tags)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("");
-  $("tbody").innerHTML = rowsHtml || `<tr><td colspan="7" style="color:#999">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="7" style="color:#6b84b0">无匹配数据</td></tr>`;
   renderCharts(rows);
 }
+
+const AXIS = { axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" }, splitLine: { lineStyle: { color: "rgba(0,229,255,.06)" } } };
 
 function renderCharts(rows) {
   if (!window.echarts) return;
   if (!chartRegion) chartRegion = echarts.init($("chartRegion"));
   if (!chartFans) chartFans = echarts.init($("chartFans"));
+  const okRows = rows.filter(r => r.status === "ok");
 
   const regCount = {};
-  const okRows = rows.filter(r => r.status === "ok");
   for (const r of okRows) { if (r.region) regCount[r.region] = (regCount[r.region] || 0) + 1; }
   const regData = Object.entries(regCount).sort((a, b) => b[1] - a[1]).slice(0, 15).reverse();
-
   chartRegion.setOption({
+    backgroundColor: "transparent",
     grid: { left: 8, right: 40, top: 8, bottom: 8, containLabel: true },
-    xAxis: { type: "value", minInterval: 1 },
-    yAxis: { type: "category", data: regData.map(d => d[0]) },
-    series: [{ type: "bar", data: regData.map(d => d[1]), itemStyle: { color: "#ff2442" }, barMaxWidth: 16 }],
-    tooltip: { trigger: "axis" }
+    xAxis: { type: "value", minInterval: 1, ...AXIS },
+    yAxis: { type: "category", data: regData.map(d => d[0]), axisLine: { lineStyle: { color: "rgba(0,229,255,.25)" } }, axisLabel: { color: "#7fb4d4" } },
+    series: [{ type: "bar", data: regData.map(d => d[1]), barMaxWidth: 16,
+      itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: "#00e5ff" }, { offset: 1, color: "#ff2d95" }]), borderRadius: [0, 4, 4, 0] } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
   }, true);
 
   const buckets = { "<100": 0, "100-999": 0, "1k-1万": 0, "1万+": 0 };
@@ -113,11 +127,13 @@ function renderCharts(rows) {
   }
   const fanKeys = ["<100", "100-999", "1k-1万", "1万+"];
   chartFans.setOption({
+    backgroundColor: "transparent",
     grid: { left: 8, right: 40, top: 30, bottom: 8, containLabel: true },
-    xAxis: { type: "category", data: fanKeys },
-    yAxis: { type: "value", minInterval: 1 },
-    series: [{ type: "bar", data: fanKeys.map(k => buckets[k]), itemStyle: { color: "#ff7a45" }, barMaxWidth: 40 }],
-    tooltip: { trigger: "axis" }
+    xAxis: { type: "category", data: fanKeys, ...AXIS },
+    yAxis: { type: "value", minInterval: 1, ...AXIS },
+    series: [{ type: "bar", data: fanKeys.map(k => buckets[k]), barMaxWidth: 42,
+      itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "#ff2d95" }, { offset: 1, color: "#7f5bff" }]), borderRadius: [4, 4, 0, 0] } }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(255,45,149,.4)", textStyle: { color: "#d6e4ff" } }
   }, true);
 }
 
@@ -141,15 +157,28 @@ function setRunning(running) {
   state.running = running;
   $("startBtn").disabled = running;
   $("stopBtn").disabled = !running;
-  $("status").textContent = running ? "运行中…" : "已停止";
+  $("status").textContent = running ? "RUNNING…" : "STANDBY";
+}
+
+async function runMode(mode, confirmText) {
+  if (confirmText && !confirm(confirmText)) return;
+  const opts = getOpts();
+  appendLog(`\n[启动模式: ${mode}]\n`);
+  const s = await window.api.runMode(mode, opts);
+  renderState(s);
+  appendLog(`[模式完成: ${mode}]\n`);
 }
 
 window.api.onStatus((s) => { $("status").textContent = s.text; setRunning(s.running); });
 window.api.onState(renderState);
 window.api.onLog(appendLog);
 
-$("startBtn").onclick = () => window.api.start(getOpts());
+$("startBtn").onclick = () => { window.api.saveConfig(getOpts()); window.api.start(getOpts()); };
 $("stopBtn").onclick = () => window.api.stop();
+$("refillBtn").onclick = () => runMode("refill", "补全缺失：只重采缺粉丝数/地区的账号？");
+$("refreshBtn").onclick = () => runMode("refresh", "刷新粉丝：重采所有成功账号（用于涨粉分析）？");
+$("retryBtn").onclick = () => runMode("retry", "重试失败：清除放弃标记并重试失败账号？");
+$("compactBtn").onclick = () => runMode("compact", "压缩进度：progress.jsonl 保留每账号最新一条（自动备份）？");
 $("exportBtn").onclick = async () => {
   $("exportBtn").disabled = true;
   appendLog("\n[导出 CSV]...\n");
@@ -157,8 +186,41 @@ $("exportBtn").onclick = async () => {
   renderState(s);
   $("exportBtn").disabled = false;
 };
+$("exportXlsxBtn").onclick = async () => {
+  $("exportXlsxBtn").disabled = true;
+  appendLog("\n[导出 Excel]...\n");
+  const s = await window.api.exportXlsx();
+  renderState(s);
+  $("exportXlsxBtn").disabled = false;
+};
+$("growthBtn").onclick = () => window.api.openDir();
 $("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) renderState(s); };
 $("openDirBtn").onclick = () => window.api.openDir();
+
+// 导入链接弹窗
+const modalMask = $("modalMask");
+$("importBtn").onclick = () => { $("importResult").textContent = ""; $("linksText").value = ""; modalMask.classList.remove("hidden"); };
+$("modalCancel").onclick = () => modalMask.classList.add("hidden");
+$("modalOk").onclick = async () => {
+  const text = $("linksText").value.trim();
+  if (!text) { $("importResult").textContent = "请先粘贴链接"; return; }
+  $("modalOk").disabled = true;
+  $("importResult").textContent = "导入中…\n";
+  const r = await window.api.importLinks(text);
+  $("importResult").textContent = r.result;
+  renderState(r.state);
+  $("modalOk").disabled = false;
+};
+
+// 配置持久化：恢复上次设置
+window.api.getConfig().then(cfg => {
+  if (cfg) {
+    if (cfg.concurrency) $("concurrency").value = cfg.concurrency;
+    if (cfg.max != null) $("max").value = cfg.max;
+    if (cfg.captchaBurst) $("captchaBurst").value = cfg.captchaBurst;
+    if (cfg.cooldown != null) $("cooldown").value = cfg.cooldown;
+  }
+});
 
 // 筛选与排序
 function onFilterChange() {
@@ -181,7 +243,7 @@ document.querySelectorAll("th[data-key]").forEach(th => {
     const key = th.dataset.key;
     if (state.sort.key === key) state.sort.dir *= -1; else state.sort = { key, dir: 1 };
     document.querySelectorAll("th[data-key]").forEach(t => t.style.color = "");
-    th.style.color = "#ff2442";
+    th.style.color = "#00e5ff";
     applyFilters();
   };
 });
@@ -189,4 +251,4 @@ document.querySelectorAll("th[data-key]").forEach(th => {
 window.addEventListener("resize", () => { if (chartRegion) chartRegion.resize(); if (chartFans) chartFans.resize(); });
 
 window.api.getState().then(renderState);
-appendLog("就绪。选择数据目录（包含 urlmap.json / scrape.js / progress.jsonl）后点击开始采集。\n");
+appendLog("就绪。选择数据目录后点击「开始采集」；快捷操作可一键补全/刷新/重试/压缩/导入链接。\n");

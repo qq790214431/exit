@@ -3,33 +3,56 @@
 <head>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
-<title>小红书主页链接采集工具</title>
+<title>小红书主页链接采集系统</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<header>
-  <div class="title">小红书主页链接采集工具</div>
-  <div class="status" id="status">未开始</div>
+<div class="bg-grid"></div>
+<header class="tech-header">
+  <div class="logo">◈ 小红书主页链接采集系统 <span class="ver">v2.0</span></div>
+  <div class="status" id="status">STANDBY</div>
 </header>
 
-<section class="data-dir">
-  <span class="label">数据目录</span>
-  <span class="path" id="dataDir">-</span>
-  <button id="pickDirBtn">选择目录…</button>
-  <button id="openDirBtn">打开目录</button>
+<section class="stats-row">
+  <div class="stat-card"><div class="stat-label">总账号</div><div class="stat-value" id="stTotal">-</div></div>
+  <div class="stat-card"><div class="stat-label">已成功</div><div class="stat-value" id="stOk">-</div></div>
+  <div class="stat-card"><div class="stat-label">粉丝总数</div><div class="stat-value" id="stFansTotal">-</div></div>
+  <div class="stat-card"><div class="stat-label">平均粉丝</div><div class="stat-value" id="stFansAvg">-</div></div>
+  <div class="stat-card"><div class="stat-label">1万+达人</div><div class="stat-value" id="stFans10k">-</div></div>
+  <div class="stat-card"><div class="stat-label">失败/放弃</div><div class="stat-value" id="stFail">-</div></div>
 </section>
 
-<section class="settings">
+<section class="panel data-dir">
+  <span class="label">数据目录</span>
+  <span class="path mono" id="dataDir">-</span>
+  <button id="pickDirBtn">选择目录</button>
+  <button id="openDirBtn">打开</button>
+</section>
+
+<section class="panel settings">
   <label>并发 <input id="concurrency" type="number" min="1" max="8" value="3" /></label>
   <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
   <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
   <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
-  <button id="startBtn" class="primary">▶ 开始采集</button>
+  <span class="sep"></span>
+  <button id="startBtn" class="primary glow">▶ 开始采集</button>
   <button id="stopBtn" class="danger">■ 停止</button>
-  <button id="exportBtn">导出 CSV</button>
 </section>
 
-<section class="progress-area">
+<section class="panel toolbar">
+  <span class="label">快捷操作</span>
+  <button id="refillBtn" title="只重采缺粉丝数/地区的账号">补全缺失</button>
+  <button id="refreshBtn" title="重采所有成功账号，刷新粉丝数（用于涨粉分析）">刷新粉丝</button>
+  <button id="retryBtn" title="清除放弃标记并重试失败账号">重试失败</button>
+  <button id="compactBtn" title="压缩 progress.jsonl（每账号保留最新一条）">压缩进度</button>
+  <button id="importBtn">导入链接</button>
+  <span class="sep"></span>
+  <button id="exportBtn" title="导出 CSV">CSV</button>
+  <button id="exportXlsxBtn" title="导出 Excel">Excel</button>
+  <button id="growthBtn" title="打开涨粉分析 CSV">涨粉分析</button>
+</section>
+
+<section class="panel progress-area">
   <div class="bar-label">
     <span id="overallText">0 / 0</span>
     <span id="roundText"></span>
@@ -39,7 +62,7 @@
   <div class="chips" id="chips"></div>
 </section>
 
-<section class="filter-bar">
+<section class="panel filter-bar">
   <input id="search" type="text" placeholder="🔍 搜索昵称 / 小红书号 / 地区…" />
   <select id="regionFilter"><option value="">全部地区</option></select>
   <input id="fansMin" type="number" placeholder="粉丝≥" min="0" />
@@ -57,14 +80,8 @@
 </section>
 
 <section class="charts">
-  <div class="chart-box">
-    <div class="chart-title">地区分布 TOP15</div>
-    <div id="chartRegion" class="chart"></div>
-  </div>
-  <div class="chart-box">
-    <div class="chart-title">粉丝数区间分布</div>
-    <div id="chartFans" class="chart"></div>
-  </div>
+  <div class="chart-box"><div class="chart-title">◤ 地区分布 TOP15</div><div id="chartRegion" class="chart"></div></div>
+  <div class="chart-box"><div class="chart-title">◤ 粉丝数区间分布</div><div id="chartFans" class="chart"></div></div>
 </section>
 
 <main>
@@ -75,7 +92,7 @@
         <th data-key="red_id">小红书号 ⇅</th>
         <th data-key="region">地区属地 ⇅</th>
         <th data-key="followers">粉丝数 ⇅</th>
-        <th data-key="followers_num">粉丝数(数值) ⇅</th>
+        <th data-key="followers_num">粉丝(数值) ⇅</th>
         <th>标签</th>
         <th data-key="status">状态 ⇅</th>
       </tr></thead>
@@ -83,10 +100,22 @@
     </table>
   </div>
   <div class="log-wrap">
-    <div class="log-title">运行日志</div>
+    <div class="log-title">▚ 运行日志</div>
     <pre id="log"></pre>
   </div>
 </main>
+
+<div id="modalMask" class="modal-mask hidden">
+  <div class="modal">
+    <div class="modal-title">◇ 导入分享链接</div>
+    <textarea id="linksText" placeholder="粘贴小红书分享链接，每行一个&#10;支持：完整主页链接 / xhslink 短链 / APP 分享文本&#10;导入后自动合并生成 urlmap.json"></textarea>
+    <div class="modal-actions">
+      <button id="modalCancel">取消</button>
+      <button id="modalOk" class="primary">导入并生成清单</button>
+    </div>
+    <pre id="importResult"></pre>
+  </div>
+</div>
 
 <script src="echarts.min.js"></script>
 <script src="renderer.js"></script>
