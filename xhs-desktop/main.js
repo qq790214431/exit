@@ -69,6 +69,8 @@ function readState(dir) {
       const n = j.followers_num;
       if (n != null) { fansTotal += n; fansCount++; if (n >= 10000) fans10k++; }
     }
+    let interactionRatio = "";
+    if (j.likes_collects_num != null && j.followers_num) interactionRatio = (j.likes_collects_num / j.followers_num).toFixed(2);
     rows.push({
       user_id: id,
       nickname: j.nickname || "",
@@ -76,6 +78,9 @@ function readState(dir) {
       region: j.region || "",
       followers: j.followers || "",
       followers_num: j.followers_num ?? "",
+      likes_collects: j.likes_collects || "",
+      likes_collects_num: j.likes_collects_num ?? "",
+      interaction_ratio: interactionRatio,
       tags: j.tags || "",
       status: j.status || "",
       ts: j.ts || ""
@@ -132,6 +137,9 @@ function runRound(opts) {
     win.webContents.send("log", text);
     const m = text.match(/\[(\d+)\/(\d+)/);
     if (m) { roundDone = Number(m[1]); roundTotal = Number(m[2]); }
+    if (text.includes("CAPTCHA_BURST") && Notification.isSupported()) {
+      new Notification({ title: "小红书采集", body: "触发验证码熔断，已停止本轮（冷却后自动继续）" }).show();
+    }
   });
   child.stderr.on("data", d => win.webContents.send("log", d.toString()));
   child.on("error", err => win.webContents.send("log", `启动失败: ${err.message}\n`));
@@ -231,6 +239,22 @@ ipcMain.handle("import-links", async (e, text) => {
   return { result: out, state: readState(dataDir) };
 });
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
+ipcMain.handle("get-trend", (e, userId) => {
+  const snapFile = path.join(dataDir, "snapshots.jsonl");
+  const points = [];
+  if (fs.existsSync(snapFile)) {
+    for (const line of fs.readFileSync(snapFile, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.user_id !== userId) continue;
+        points.push({ ts: j.ts, followers_num: j.followers_num, likes_collects_num: j.likes_collects_num });
+      } catch (err) {}
+    }
+  }
+  points.sort((a, b) => a.ts.localeCompare(b.ts));
+  return points;
+});
 
 // ---------- 窗口 ----------
 function createWindow() {
@@ -278,7 +302,10 @@ function createWindow() {
               regionOptions: document.getElementById("regionFilter").options.length,
               chartCanvases: document.querySelectorAll(".chart canvas").length,
               filterCount: document.getElementById("filterCount").textContent,
-              statCards: document.querySelectorAll(".stat-card").length
+              statCards: document.querySelectorAll(".stat-card").length,
+              scheduleUI: !!document.getElementById("scheduleTime"),
+              trendModal: !!document.getElementById("trendMask"),
+              tableHeaderCols: document.querySelectorAll("#tbody")[0] ? document.querySelectorAll("thead th").length : 0
             }))()`);
             fs.writeFileSync(dumpArg.split("=")[1], info);
             console.log("dump saved");
@@ -290,9 +317,29 @@ function createWindow() {
   }
 }
 
+let scheduleLastDate = "";
+function checkSchedule() {
+  if (!config.scheduleEnabled || !win || win.isDestroyed()) return;
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  if (config.scheduleTime !== hhmm) return;
+  if (scheduleLastDate === today) return;
+  scheduleLastDate = today;
+  win.webContents.send("log", `\n[定时任务] ${today} ${hhmm} 开始自动刷新粉丝数...\n`);
+  spawnOnce({ ...process.env, REFRESH: "1", CONCURRENCY: "3" }, "scheduled-refresh").then(() => {
+    const st = readState(dataDir);
+    win.webContents.send("state", st);
+    if (Notification.isSupported()) {
+      new Notification({ title: "小红书采集", body: `定时刷新完成：${st.doneOk}/${st.total} 个账号` }).show();
+    }
+  });
+}
+
 app.whenReady().then(() => {
   loadConfig();
   createWindow();
+  setInterval(checkSchedule, 30000);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

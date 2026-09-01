@@ -82,16 +82,21 @@ function applyFilters() {
   $("filterCount").textContent = `显示 ${rows.length} / ${state.rows.length}`;
   $("tbody").innerHTML = rows.map(r => {
     const st = r.status || "-";
-    return `<tr>
+    return `<tr data-uid="${esc(r.user_id)}" title="点击查看粉丝趋势">
       <td>${esc(r.nickname)}</td>
       <td>${esc(r.red_id)}</td>
       <td>${esc(r.region)}</td>
       <td>${esc(r.followers)}</td>
       <td>${esc(r.followers_num)}</td>
+      <td>${esc(r.likes_collects_num)}</td>
+      <td>${esc(r.interaction_ratio)}</td>
       <td>${esc(r.tags)}</td>
       <td><span class="status-pill ${st}">${st}</span></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" style="color:#6b84b0">无匹配数据</td></tr>`;
+  }).join("") || `<tr><td colspan="9" style="color:#6b84b0">无匹配数据</td></tr>`;
+  document.querySelectorAll("#tbody tr[data-uid]").forEach(tr => {
+    tr.onclick = () => showTrend(tr.dataset.uid, tr.children[0].textContent);
+  });
   renderCharts(rows);
 }
 
@@ -197,6 +202,30 @@ $("growthBtn").onclick = () => window.api.openDir();
 $("pickDirBtn").onclick = async () => { const s = await window.api.pickDir(); if (s) renderState(s); };
 $("openDirBtn").onclick = () => window.api.openDir();
 
+// 粉丝趋势弹窗
+let chartTrend = null;
+async function showTrend(uid, nickname) {
+  $("trendTitle").textContent = `◇ 粉丝趋势 · ${nickname || uid}`;
+  $("trendMask").classList.remove("hidden");
+  const points = await window.api.getTrend(uid);
+  if (!chartTrend) chartTrend = echarts.init($("chartTrend"));
+  chartTrend.setOption({
+    backgroundColor: "transparent",
+    grid: { left: 8, right: 20, top: 30, bottom: 30, containLabel: true },
+    xAxis: { type: "category", data: points.map(p => p.ts.slice(5, 16).replace("T", " ")), ...AXIS },
+    yAxis: { type: "value", ...AXIS },
+    series: [{
+      type: "line", smooth: true, data: points.map(p => p.followers_num), symbolSize: 6,
+      lineStyle: { color: "#00e5ff", width: 2 }, itemStyle: { color: "#ff2d95" },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "rgba(0,229,255,.35)" }, { offset: 1, color: "rgba(0,229,255,0)" }]) }
+    }],
+    tooltip: { trigger: "axis", backgroundColor: "#0a1322", borderColor: "rgba(0,229,255,.4)", textStyle: { color: "#d6e4ff" } }
+  }, true);
+  if (points.length < 2) $("chartTrend").innerHTML = '<div style="color:#6b84b0;padding:40px;text-align:center">快照不足（需至少 2 个时间点），请先 REFRESH 刷新几轮</div>';
+}
+$("trendClose").onclick = () => $("trendMask").classList.add("hidden");
+$("trendMask").onclick = (e) => { if (e.target === $("trendMask")) $("trendMask").classList.add("hidden"); };
+
 // 导入链接弹窗
 const modalMask = $("modalMask");
 $("importBtn").onclick = () => { $("importResult").textContent = ""; $("linksText").value = ""; modalMask.classList.remove("hidden"); };
@@ -219,7 +248,15 @@ window.api.getConfig().then(cfg => {
     if (cfg.max != null) $("max").value = cfg.max;
     if (cfg.captchaBurst) $("captchaBurst").value = cfg.captchaBurst;
     if (cfg.cooldown != null) $("cooldown").value = cfg.cooldown;
+    if (cfg.scheduleEnabled != null) $("scheduleEnabled").checked = !!cfg.scheduleEnabled;
+    if (cfg.scheduleTime) $("scheduleTime").value = cfg.scheduleTime;
   }
+});
+["scheduleEnabled", "scheduleTime"].forEach(id => {
+  $(id).addEventListener("change", () => {
+    window.api.saveConfig({ scheduleEnabled: $("scheduleEnabled").checked, scheduleTime: $("scheduleTime").value });
+    appendLog(`\n[定时刷新] ${$("scheduleEnabled").checked ? "已启用" : "已停用"}（${$("scheduleTime").value}）\n`);
+  });
 });
 
 // 筛选与排序

@@ -11,7 +11,7 @@ const CHROME = process.env.CHROME || "/Users/Admin/Library/Caches/ms-playwright/
 const OUT_DIR = __dirname;
 const PROGRESS = OUT_DIR + "/progress.jsonl";
 const CSV_PATH = OUT_DIR + "/xhs_profiles.csv";
-const CSV_COLS = ["user_id", "nickname", "red_id", "region", "ip", "tags", "following", "followers", "likes_collects", "followers_num", "status", "url", "ts"];
+const CSV_COLS = ["user_id", "nickname", "red_id", "region", "ip", "tags", "following", "followers", "likes_collects", "likes_collects_num", "followers_num", "interaction_ratio", "status", "url", "ts"];
 
 const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
 const MAX = Number(process.env.MAX || 0);
@@ -24,6 +24,9 @@ const RETRY_ABANDONED = process.env.RETRY_ABANDONED === "1";
 const MAX_FAIL = Number(process.env.MAX_FAIL || 3);
 const ABANDONED_PATH = OUT_DIR + "/abandoned.json";
 const SNAPSHOT_PATH = OUT_DIR + "/snapshots.jsonl";
+const SHOT_DIR = OUT_DIR + "/screenshots";
+const SHOT_LIMIT = Number(process.env.SHOT_LIMIT || 5);
+let shotCount = 0;
 
 // 输入：默认 xhs采集/urlmap.json，缺失回退 /tmp/urlmap.json，可用 INPUT_JSON 覆盖
 const INPUT_JSON = process.env.INPUT_JSON || (fs.existsSync(OUT_DIR + "/urlmap.json") ? OUT_DIR + "/urlmap.json" : "/tmp/urlmap.json");
@@ -139,7 +142,13 @@ function exportCsv() {
       try {
         const j = JSON.parse(line);
         if (j.status !== "ok") continue;
-        byId.set(j.user_id, CSV_COLS.map(c => csvEscape(j[c])));
+        const jj = { ...j };
+        if (jj.likes_collects_num != null && jj.followers_num) {
+          jj.interaction_ratio = (jj.likes_collects_num / jj.followers_num).toFixed(2);
+        } else {
+          jj.interaction_ratio = "";
+        }
+        byId.set(j.user_id, CSV_COLS.map(c => csvEscape(jj[c])));
       } catch (e) {}
     }
   }
@@ -166,6 +175,15 @@ async function scrapeOne(page, uid, url, attempt) {
       if (u.includes("website-login") || u.includes("captcha")) {
         result.status = "captcha";
         result.body = (await page.evaluate(() => document.body.innerText.slice(0, 80)).catch(() => ""));
+        if (shotCount < SHOT_LIMIT) {
+          try {
+            fs.mkdirSync(SHOT_DIR, { recursive: true });
+            const shotPath = `${SHOT_DIR}/captcha_${uid}_a${attempt}.png`;
+            await page.screenshot({ path: shotPath });
+            result.shot = shotPath;
+            shotCount++;
+          } catch (e) {}
+        }
         return result;
       }
       const hasCard = await page.evaluate(() => !!document.querySelector(".user-name")).catch(() => false);
@@ -226,6 +244,7 @@ async function scrapeOne(page, uid, url, attempt) {
     result.following = data.stats.following;
     result.followers = data.stats.followers;
     result.likes_collects = data.stats.likesCollects;
+    result.likes_collects_num = parseNum(data.stats.likesCollects);
     result.followers_num = parseNum(data.stats.followers);
     return result;
   } catch (e) {
@@ -272,7 +291,7 @@ async function scrapeOne(page, uid, url, attempt) {
         }
         fs.appendFileSync(PROGRESS, JSON.stringify(result) + "\n");
         if (result.status === "ok") {
-          fs.appendFileSync(SNAPSHOT_PATH, JSON.stringify({ user_id: result.user_id, nickname: result.nickname || "", followers: result.followers || "", followers_num: result.followers_num ?? null, ts: result.ts }) + "\n");
+          fs.appendFileSync(SNAPSHOT_PATH, JSON.stringify({ user_id: result.user_id, nickname: result.nickname || "", followers: result.followers || "", followers_num: result.followers_num ?? null, likes_collects_num: result.likes_collects_num ?? null, ts: result.ts }) + "\n");
         }
         if (result.status === "captcha" || result.status === "error") {
           consecutiveCaptcha++;

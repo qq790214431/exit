@@ -34,6 +34,8 @@
   <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
   <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
   <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
+  <label class="chk"><input type="checkbox" id="scheduleEnabled" /> 定时刷新</label>
+  <input type="time" id="scheduleTime" value="03:00" title="每天此时自动刷新粉丝数" />
   <span class="sep"></span>
   <button id="startBtn" class="primary glow">▶ 开始采集</button>
   <button id="stopBtn" class="danger">■ 停止</button>
@@ -93,6 +95,8 @@
         <th data-key="region">地区属地 ⇅</th>
         <th data-key="followers">粉丝数 ⇅</th>
         <th data-key="followers_num">粉丝(数值) ⇅</th>
+        <th data-key="likes_collects_num">获赞收藏 ⇅</th>
+        <th data-key="interaction_ratio">互动率 ⇅</th>
         <th>标签</th>
         <th data-key="status">状态 ⇅</th>
       </tr></thead>
@@ -104,6 +108,14 @@
     <pre id="log"></pre>
   </div>
 </main>
+
+<div id="trendMask" class="modal-mask hidden">
+  <div class="modal">
+    <div class="modal-title" id="trendTitle">◇ 粉丝趋势</div>
+    <div id="chartTrend" class="chart" style="height:300px"></div>
+    <div class="modal-actions"><button id="trendClose">关闭</button></div>
+  </div>
+</div>
 
 <div id="modalMask" class="modal-mask hidden">
   <div class="modal">

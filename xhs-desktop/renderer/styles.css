@@ -75,6 +75,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--cyan); box-shado
 input[type="number"] { width: 68px; font-family: var(--mono); }
 select option { background: #0d1628; }
 .tilde { color: var(--dim); }
+label.chk { display: flex; align-items: center; gap: 5px; color: var(--dim); font-size: 12px; cursor: pointer; }
+label.chk input { width: auto; }
 
 button {
   padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 13px;
