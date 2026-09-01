@@ -313,6 +313,27 @@ async function loadRanking() {
 }
 $("rankRefresh").onclick = () => { loadRanking(); loadRankMap(); };
 
+// 验证码记录弹窗
+$("captchaListBtn").onclick = async () => {
+  const data = await window.api.getCaptchaEvents();
+  const rows = data.events.slice().reverse().map(e => {
+    const shotName = e.shot ? e.shot.split("/").pop() : "";
+    const btn = shotName ? `<button class="mini" data-shot="${esc(shotName)}">查看截图</button>` : "";
+    return `<div class="cap-row"><span class="mono">${esc(e.user_id)}</span><span class="mono dim">${esc(e.ts)}</span>${btn}</div>`;
+  }).join("") || `<div style="color:#6b84b0;padding:12px">暂无验证码记录</div>`;
+  $("captchaList").innerHTML = rows;
+  $("captchaImg").src = "";
+  $("captchaMask").classList.remove("hidden");
+  document.querySelectorAll(".cap-row button[data-shot]").forEach(b => {
+    b.onclick = async () => {
+      const dataUrl = await window.api.readImage(b.dataset.shot);
+      $("captchaImg").src = dataUrl || "";
+    };
+  });
+};
+$("captchaClose").onclick = () => $("captchaMask").classList.add("hidden");
+$("captchaMask").onclick = (e) => { if (e.target === $("captchaMask")) $("captchaMask").classList.add("hidden"); };
+
 // 粉丝趋势弹窗
 let chartTrend = null;
 let detailUid = "";
@@ -381,7 +402,16 @@ window.api.getConfig().then(cfg => {
     if (cfg.scheduleTime) $("scheduleTime").value = cfg.scheduleTime;
     if (cfg.interactWeight) { weights.interact = Number(cfg.interactWeight); $("interactWeight").value = cfg.interactWeight; }
     if (cfg.growthWeight) { weights.growth = Number(cfg.growthWeight); $("growthWeight").value = cfg.growthWeight; }
+    if (cfg.reportEnabled != null) $("reportEnabled").checked = !!cfg.reportEnabled;
+    if (cfg.reportDay != null) $("reportDay").value = cfg.reportDay;
+    if (cfg.reportTime) $("reportTime").value = cfg.reportTime;
   }
+});
+["reportEnabled", "reportDay", "reportTime"].forEach(id => {
+  $(id).addEventListener("change", () => {
+    window.api.saveConfig({ reportEnabled: $("reportEnabled").checked, reportDay: $("reportDay").value, reportTime: $("reportTime").value });
+    appendLog(`\n[周报定时] ${$("reportEnabled").checked ? "已启用" : "已停用"}（${["周日","周一","周二","周三","周四","周五","周六"][Number($("reportDay").value)]} ${$("reportTime").value}）\n`);
+  });
 });
 ["interactWeight", "growthWeight"].forEach(id => {
   $(id).addEventListener("change", () => {
