@@ -38,7 +38,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_BUILDER_PUBLISH: "never"
-        run: npx electron-builder --mac
+        run: npx electron-builder --mac -c.publish=never
       - name: 上传 mac 产物（含自动更新元数据）
         uses: actions/upload-artifact@v4
         with:
@@ -79,7 +79,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_BUILDER_PUBLISH: "never"
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 -c.publish=never
       - name: 上传 win 产物（含自动更新元数据）
         uses: actions/upload-artifact@v4
         with:
