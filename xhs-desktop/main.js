@@ -3,7 +3,9 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const XLSX = require("xlsx");
-const { parseTags, computeTier, interactionRatio, csvEscape } = require(path.join(__dirname, "..", "xhs采集", "lib.js"));
+let lib;
+try { lib = require("./lib.js"); } catch (e) { lib = require(path.join(__dirname, "..", "xhs采集", "lib.js")); }
+const { parseTags, computeTier, interactionRatio, csvEscape } = lib;
 
 // 打包后应用位于 .app 内部，默认数据目录改为探测常见位置
 function defaultDataDir() {
@@ -242,7 +244,9 @@ ipcMain.handle("export-xlsx", () => {
 ipcMain.handle("import-links", async (e, text) => {
   const linksFile = path.join(dataDir, "links.txt");
   fs.writeFileSync(linksFile, text || "");
-  const script = path.join(__dirname, "..", "xhs采集", "import_links.js");
+  const script = fs.existsSync(path.join(__dirname, "import_links.js"))
+    ? path.join(__dirname, "import_links.js")
+    : path.join(__dirname, "..", "xhs采集", "import_links.js");
   const c = spawn("node", [script], {
     cwd: dataDir,
     env: { ...process.env, LINKS_FILE: linksFile, INPUT_JSON: path.join(dataDir, "urlmap.json"), URLMAP_OUT: path.join(dataDir, "urlmap.json") }
@@ -302,6 +306,7 @@ ipcMain.handle("backup", () => {
     });
   });
 });
+ipcMain.handle("open-screenshots", () => shell.openPath(path.join(dataDir, "screenshots")));
 ipcMain.handle("open-dir", () => shell.openPath(dataDir));
 ipcMain.handle("get-growth-ranking", () => {
   const snapFile = path.join(dataDir, "snapshots.jsonl");

@@ -34,6 +34,8 @@
   <label>每轮上限 <input id="max" type="number" min="0" value="0" title="0=不限制" /></label>
   <label>验证码熔断 <input id="captchaBurst" type="number" min="1" max="30" value="8" /></label>
   <label>冷却(秒) <input id="cooldown" type="number" min="0" max="3600" value="600" /></label>
+  <label>互动权重 <input id="interactWeight" type="number" min="0" max="30" value="20" title="互动表现加分上限" /></label>
+  <label>涨粉权重 <input id="growthWeight" type="number" min="0" max="20" value="12" title="涨粉速度加分上限" /></label>
   <label class="chk"><input type="checkbox" id="scheduleEnabled" /> 定时刷新</label>
   <input type="time" id="scheduleTime" value="03:00" title="每天此时自动刷新粉丝数" />
   <span class="sep"></span>
@@ -54,6 +56,7 @@
   <button id="exportFilteredBtn" title="导出当前筛选结果">导出筛选</button>
   <button id="growthBtn" title="打开涨粉分析 CSV">涨粉分析</button>
   <button id="backupBtn" title="打包备份全部数据">备份</button>
+  <button id="captchaBtn" title="打开验证码截图目录">验证码截图</button>
 </section>
 
 <section class="panel progress-area">
